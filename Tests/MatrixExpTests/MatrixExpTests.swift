@@ -59,6 +59,16 @@ final class MatrixExpTests: XCTestCase {
         
         XCTAssertEqual(expected, result)
     }
+    
+    func testEvaluateComplex() {
+        let M = Matrix<Complex<Double>>(rows: [[Complex<Double>(0,0), Complex<Double>(0, -1)],
+                                               [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
+        let expected = Matrix<Complex<Double>>(rows: [[Complex<Double>(1.5430806348152437, 0), Complex<Double>(0, -1.1752011936438016)],
+                                                      [Complex<Double>(0, 1.1752011936438014), Complex<Double>(1.5430806348152437, 0)]])
+        let result = MatrixExpComplex.evaluate(for: M)
+        
+        XCTAssertEqual(expected, result)
+    }
 
     static var allTests = [
         ("testExample", testExample),
@@ -66,6 +76,7 @@ final class MatrixExpTests: XCTestCase {
         ("testDiag", testDiag),
         ("testPadeCoefficients", testPadeCoefficients),
         ("testScalingAndOrder", testScalingAndOrder),
-        ("testEvaluate", testEvaluate)
+        ("testEvaluate", testEvaluate),
+        ("testEvaluateComplex", testEvaluateComplex)
     ]
 }
