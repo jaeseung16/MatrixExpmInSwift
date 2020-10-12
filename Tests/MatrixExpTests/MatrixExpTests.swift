@@ -40,11 +40,32 @@ final class MatrixExpTests: XCTestCase {
 
         XCTAssertEqual(theta, expected)
     }
+    
+    func testScalingAndOrder() {
+        let M = Matrix<Double>(rows: [[0, 1], [1, 0]])
+        let order = 13
+        let scaling = -2
+        
+        let (s, o, _) = MatrixExp.expmParams(for: M)
+
+        XCTAssertEqual(scaling, s)
+        XCTAssertEqual(order, o)
+    }
+    
+    func testEvaluate() {
+        let M = Matrix<Double>(rows: [[0, 1], [1, 0]])
+        let expected = Matrix<Double>(rows: [[1.5430806348152437, 1.1752011936438014], [1.1752011936438014, 1.5430806348152437]])
+        let result = MatrixExp.evaluate(for: M)
+        
+        XCTAssertEqual(expected, result)
+    }
 
     static var allTests = [
         ("testExample", testExample),
         ("testIsDiag", testIsDiag),
         ("testDiag", testDiag),
-        ("testPadeCoefficients", testPadeCoefficients)
+        ("testPadeCoefficients", testPadeCoefficients),
+        ("testScalingAndOrder", testScalingAndOrder),
+        ("testEvaluate", testEvaluate)
     ]
 }

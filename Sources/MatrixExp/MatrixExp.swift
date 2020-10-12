@@ -12,16 +12,26 @@ class MatrixExp {
             return nil
         }
         
+        print("input = \(matrix)")
         var result = Matrix<Double>.zeros(matrix.rows, matrix.columns)
+        print("\(result)")
         
         if (isDiag(matrix)) {
+            print("diag")
             if (matrix.rows == matrix.columns) {
                 for k in 0..<matrix.columns {
                     result[k, k] = exp(matrix[k, k])
                 }
             }
+        } else {
+            let (scaling, order, Mpowers) = expmParams(for: matrix)
+            //print("scaling = \(scaling)")
+            //print("order = \(order)")
+            //print("Mpowers = \(Mpowers)")
+            result = padeApprox(for: matrix, Mpowers: Mpowers, order: 13)!
         }
         
+        print("output = \(result)")
         return result
     }
     
@@ -76,6 +86,58 @@ class MatrixExp {
             
         }
         return (norm, mv)
+    }
+    
+    static func expmParams(for M: Matrix<Double>) -> (Int, Int, [Matrix<Double>]) {
+        // Use old estimate first
+        // TODO: Implement the logic for the smaller order: 3, 5, 7, and 9
+        
+        var Mpowers = [Matrix<Double>](repeating: M, count: 6)
+        Mpowers[1] = M * M
+        Mpowers[3] = Mpowers[1] * Mpowers[1]
+        Mpowers[5] = Mpowers[1] * Mpowers[3]
+        
+        let order = 13
+        let norm1 = M.manhattanNorm
+        let theta = MatrixExpConst.theta(for: order)!
+        
+        let needAName = norm1/theta
+        
+        let t = log2(needAName.significand)
+        let s = needAName.exponent - (t == 0.5 ? 1 : 0)
+        
+        return (s, order, Mpowers)
+    }
+    
+    static func padeApprox(for M: Matrix<Double>, Mpowers: [Matrix<Double>], order: Int) -> Matrix<Double>? {
+        let coeffs = MatrixExpConst.padeCoefficients(for: order)!
+        let I = Matrix<Double>.eye(M.rows)
+        var F = Matrix<Double>.eye(M.rows)
+        
+        print("F = \(F)")
+        
+        if (order == 13) {
+            let U1 = coeffs[13] * Mpowers[5] + coeffs[11] * Mpowers[3] + coeffs[9] * Mpowers[1]
+            let U2 = coeffs[7] * Mpowers[5] + coeffs[5] * Mpowers[3] + coeffs[3] * Mpowers[1]
+            let U = M * (Mpowers[5] * U1 + U2 + coeffs[1] * I)
+            
+            let V1 = coeffs[12] * Mpowers[5] + coeffs[10] * Mpowers[3] + coeffs[8] * Mpowers[1]
+            let V2 = coeffs[6] * Mpowers[5] + coeffs[4] * Mpowers[3] + coeffs[2] * Mpowers[1]
+            let V = Mpowers[5] * V1 + V2 + coeffs[0] * I
+            
+            print("U = \(U)")
+            print("V = \(V)")
+            
+            guard let solve = (V-U).solve(2.0 * U) else {
+                print("returning nil")
+                return nil
+            }
+            
+            print("solve = \(solve)")
+            F = solve + I
+        }
+        
+        return F
     }
 }
 
