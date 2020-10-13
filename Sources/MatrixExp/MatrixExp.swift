@@ -136,5 +136,30 @@ class MatrixExp<Type> where Type: Exponentiable {
         
         return F
     }
+    
+    static func isSchur(_ matrix: Matrix<Type>) -> Bool {
+        var result: Bool
+        
+        if (isScalar(matrix)) {
+            result = true
+        } else if (!isSquare(matrix)) {
+            result = false
+        } else if (matrix is Matrix<Double> || matrix is Matrix<Float>) {
+            result = matrix.isQuasiUpperTriangle
+        } else {
+            result = matrix.isUpperTriangle
+        }
+        
+        return result
+    }
+    
+    static func isScalar(_ matrix: Matrix<Type>) -> Bool {
+        return matrix.rows == 1 && matrix.columns == 1
+    }
+    
+    static func isHermitian(_ matrix: Matrix<Type>) -> Bool {
+        return matrix == matrix.adjoint
+    }
+    
 }
 
