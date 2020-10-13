@@ -9,7 +9,7 @@ import Foundation
 import Numerics
 import LANumerics
 
-protocol Exponentiable: MatrixElement, LANumeric {
+protocol Exponentiable: LANumeric {
     func exponentiation() -> Self
 }
 
