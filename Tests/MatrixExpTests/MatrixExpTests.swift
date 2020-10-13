@@ -69,6 +69,16 @@ final class MatrixExpTests: XCTestCase {
         
         XCTAssertEqual(expected, result)
     }
+    
+    func testEll() {
+        let M = Matrix<Complex<Double>>(rows: [[Complex<Double>(0,0), Complex<Double>(0, -1)],
+                                               [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
+        let expected = 10.0
+        let result = MatrixExp<Complex>.ell(M, coeff: 1.0/100800.0, order: 2)
+        
+        XCTAssertEqual(expected, result)
+    }
+
 
     static var allTests = [
         ("testExample", testExample),

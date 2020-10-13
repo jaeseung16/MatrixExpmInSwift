@@ -67,24 +67,6 @@ class MatrixExp<Type> where Type: Exponentiable {
         return 0.0
     }
     
-    static func norm(of M: Matrix<Double>, power: Int) -> (Double, Int) {
-        var norm = 0.0
-        var mv = 0
-        var Mpower = M
-        
-        if (M.columns < 50) {
-            for _ in 1..<power {
-                Mpower = Mpower * M
-            }
-            norm = Mpower.manhattanNorm
-        } else if (M.forall { $0 >= 0 }) {
-            mv = power
-        } else {
-            
-        }
-        return (norm, mv)
-    }
-    
     static func expmParams(for M: Matrix<Type>) -> (Int, Int, [Matrix<Type>]) {
         // Use old estimate first
         // TODO: Implement the logic for the smaller order: 3, 5, 7, and 9
@@ -161,5 +143,50 @@ class MatrixExp<Type> where Type: Exponentiable {
         return matrix == matrix.adjoint
     }
     
+    static func ell(_ matrix: Matrix<Type>, coeff: Type, order: Int) -> Double? {
+        guard let realValueOfCoeff = coeff.length as? Double else {
+            print("coeff should be real: coeff = \(coeff)")
+            return nil
+        }
+        
+        let factor = pow(realValueOfCoeff, 1.0 / Double(2 * order + 1))
+        let scaledMatrix = matrix.map { ($0.length as! Double) * factor}
+        let alpha = norm(of: scaledMatrix, power: (2 * order + 1))! / (matrix.manhattanNorm as! Double)
+        
+        let u = pow(2.0, -52.0)
+
+        return max(ceil(log2(2.0 * alpha / u) / Double(2 * order)), 0.0)
+    }
+    
+    static func norm(of M: Matrix<Double>, power: Int) -> Double? {
+        var estimatedNorm: Double?
+        var Mpower = Matrix<Double>.eye(M.rows)
+        
+        if (M.rows < 50) {
+            for _ in 0..<power {
+                Mpower = M * Mpower
+            }
+            estimatedNorm = Mpower.manhattanNorm
+        } else if (isPositive(M)) {
+            var e = Matrix<Double>(Vector<Double>(repeating: 1.0, count: M.rows))
+            print("initial e = \(e)")
+            for k in 0..<power {
+                e = M.transpose * e
+                print("\(k)th e = \(e)")
+            }
+            estimatedNorm = e.infNorm
+        } else {
+            // MATLAB normAM has an implementation for this case
+            // However, we know that M is real and positive for matrix exponentiation
+            // For now, return nil
+            estimatedNorm = nil
+        }
+        
+        return estimatedNorm
+    }
+    
+    static func isPositive(_ M: Matrix<Double>) -> Bool {
+        return M.forall {$0 >= 0}
+    }
 }
 
