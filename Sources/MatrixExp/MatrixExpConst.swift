@@ -8,7 +8,7 @@
 import Foundation
 import LANumerics
 
-struct MatrixExpConst {
+struct MatrixExpConst<Type> where Type: Exponentiable {
     
     enum PadeApproximantOrder: Int {
         case three = 3
@@ -18,12 +18,12 @@ struct MatrixExpConst {
         case thirteen = 13
     }
     
-    static func padeCoefficients(for order: Int) -> Vector<Double>? {
+    static func padeCoefficients(for order: Int) -> Vector<Type>? {
         guard let m = PadeApproximantOrder(rawValue: order) else {
             return nil
         }
         
-        var coeff: Vector<Double>
+        var coeff: Vector<Type>
         
         switch (m) {
         case .three:
@@ -46,9 +46,13 @@ struct MatrixExpConst {
         return coeff
     }
     
-    static let coefficientsOfBackwardsErrorFunction : Vector<Double>
-        = [1.0/100800.0, 1.0/10059033600.0, 1.0/4487938430976000.0,
-           1.0/5914384781877411840000.0, 1.0/113250775606021113483283660800000000.0]
+    static var coefficientsOfBackwardsErrorFunction : Vector<Double> {
+        return [1.0/100800.0,
+                1.0/10059033600.0,
+                1.0/4487938430976000.0,
+                1.0/5914384781877411840000.0,
+                1.0/113250775606021113483283660800000000.0]
+    }
     
     static func theta(for order: Int) -> Double? {
         guard let m = PadeApproximantOrder(rawValue: order) else {

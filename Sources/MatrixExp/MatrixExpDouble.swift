@@ -1,25 +1,32 @@
+//
+//  File.swift
+//  
+//
+//  Created by Jae Seung Lee on 10/12/20.
+//
+
 import Foundation
 import Numerics
 import RealModule
 import LANumerics
 
-class MatrixExp<Type> where Type: Exponentiable {
+class MatrixExpDouble {
     var text = "Hello, World!"
     
-    static func evaluate(for matrix: Matrix<Type>) -> Matrix<Type>? {
+    static func evaluate(for matrix: Matrix<Double>) -> Matrix<Double>? {
         guard isSquare(matrix) else {
             NSLog("Need a square matrix as an input: \(matrix) ")
             return nil
         }
         
         print("input = \(matrix)")
-        var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
+        var result = Matrix<Double>.zeros(matrix.rows, matrix.columns)
         print("\(result)")
         
         if (isDiag(matrix)) {
             print("diag")
             for k in 0..<matrix.columns {
-                result[k, k] = matrix[k, k].exponentiation()
+                result[k, k] = exp(matrix[k, k])
             }
         } else {
             let (scaling, order, Mpowers) = expmParams(for: matrix)
@@ -33,23 +40,23 @@ class MatrixExp<Type> where Type: Exponentiable {
         return result
     }
     
-    static func isDiag(_ matrix: Matrix<Type>) -> Bool {
+    static func isDiag(_ matrix: Matrix<Double>) -> Bool {
         var isDiag = false
         
-        var diag = Vector<Type>()
+        var diag = Vector<Double>()
         
         if (matrix.rows == matrix.columns) {
             for k in 0..<matrix.columns {
                 diag.append(matrix[k,k])
             }
-            isDiag = Matrix<Type>(diagonal: diag) == matrix
+            isDiag = Matrix<Double>(diagonal: diag) == matrix
         }
         
         return isDiag
         
     }
     
-    static func isSquare(_ matrix: Matrix<Type>) -> Bool {
+    static func isSquare(_ matrix: Matrix<Double>) -> Bool {
         return matrix.rows == matrix.columns
     }
     
@@ -85,18 +92,18 @@ class MatrixExp<Type> where Type: Exponentiable {
         return (norm, mv)
     }
     
-    static func expmParams(for M: Matrix<Type>) -> (Int, Int, [Matrix<Type>]) {
+    static func expmParams(for M: Matrix<Double>) -> (Int, Int, [Matrix<Double>]) {
         // Use old estimate first
         // TODO: Implement the logic for the smaller order: 3, 5, 7, and 9
         
-        var Mpowers = [Matrix<Type>](repeating: M, count: 6)
+        var Mpowers = [Matrix<Double>](repeating: M, count: 6)
         Mpowers[1] = M * M
         Mpowers[3] = Mpowers[1] * Mpowers[1]
         Mpowers[5] = Mpowers[1] * Mpowers[3]
         
         let order = 13
-        let norm1 = M.manhattanNorm as! Double
-        let theta = MatrixExpConst<Type>.theta(for: order)!
+        let norm1 = M.manhattanNorm
+        let theta = MatrixExpConst<Double>.theta(for: order)!
         
         let needAName = norm1/theta
         
@@ -106,10 +113,10 @@ class MatrixExp<Type> where Type: Exponentiable {
         return (s, order, Mpowers)
     }
     
-    static func padeApprox(for M: Matrix<Type>, Mpowers: [Matrix<Type>], order: Int) -> Matrix<Type>? {
-        let coeffs = MatrixExpConst<Type>.padeCoefficients(for: order)!
-        let I = Matrix<Type>.eye(M.rows)
-        var F = Matrix<Type>.eye(M.rows)
+    static func padeApprox(for M: Matrix<Double>, Mpowers: [Matrix<Double>], order: Int) -> Matrix<Double>? {
+        let coeffs = MatrixExpConst<Double>.padeCoefficients(for: order)!
+        let I = Matrix<Double>.eye(M.rows)
+        var F = Matrix<Double>.eye(M.rows)
         
         print("F = \(F)")
         
@@ -137,4 +144,6 @@ class MatrixExp<Type> where Type: Exponentiable {
         return F
     }
 }
+
+
 
