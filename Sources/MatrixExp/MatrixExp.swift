@@ -23,10 +23,10 @@ class MatrixExp<Type> where Type: Exponentiable {
             }
         } else {
             let (scaling, order, Mpowers) = expmParams(for: matrix)
-            //print("scaling = \(scaling)")
-            //print("order = \(order)")
-            //print("Mpowers = \(Mpowers)")
-            result = padeApprox(for: matrix, Mpowers: Mpowers, order: 13)!
+            print("scaling = \(scaling)")
+            print("order = \(order)")
+            print("Mpowers = \(Mpowers)")
+            result = padeApprox(for: matrix, Mpowers: Mpowers, order: order)!
         }
         
         print("output = \(result)")
@@ -89,7 +89,7 @@ class MatrixExp<Type> where Type: Exponentiable {
         }
         
         let d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
-        let eta3 = max(36, d8)
+        let eta3 = max(d6, d8)
         if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7)! == 0.0) {
             order = 7
             return (s, order, Mpowers)
@@ -106,17 +106,18 @@ class MatrixExp<Type> where Type: Exponentiable {
         
         let factor = Type(floatLiteral: pow(2.0, Double(s)) as! Type.FloatLiteralType)
         let scaledM = M.map { $0 / factor }
-        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
-        if (sFromEll != nil) {
-            s = s + Int(sFromEll!)
-        } else {
+        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)!
+        
+        if (sFromEll.isNaN) {
             let norm1 = M.manhattanNorm as! Double
-            let theta = MatrixExpConst<Type>.theta(for: order)!
+            let theta = MatrixExpConst<Type>.theta(for: 13)!
             
             let needAName = norm1/theta
             
             let t = log2(needAName.significand)
             s = needAName.exponent - (t == 0.5 ? 1 : 0)
+        } else {
+            s = s + Int(sFromEll)
         }
         order = 13
 
@@ -127,29 +128,52 @@ class MatrixExp<Type> where Type: Exponentiable {
         let coeffs = MatrixExpConst<Type>.padeCoefficients(for: order)!
         let I = Matrix<Type>.eye(M.rows)
         var F = Matrix<Type>.eye(M.rows)
+        var Mpowers2 = Mpowers
+        
+        var U = Matrix<Type>.eye(M.rows)
+        var V = Matrix<Type>.eye(M.rows)
         
         print("F = \(F)")
         
         if (order == 13) {
             let U1 = coeffs[13] * Mpowers[5] + coeffs[11] * Mpowers[3] + coeffs[9] * Mpowers[1]
             let U2 = coeffs[7] * Mpowers[5] + coeffs[5] * Mpowers[3] + coeffs[3] * Mpowers[1]
-            let U = M * (Mpowers[5] * U1 + U2 + coeffs[1] * I)
+            U = M * (Mpowers[5] * U1 + U2 + coeffs[1] * I)
             
             let V1 = coeffs[12] * Mpowers[5] + coeffs[10] * Mpowers[3] + coeffs[8] * Mpowers[1]
             let V2 = coeffs[6] * Mpowers[5] + coeffs[4] * Mpowers[3] + coeffs[2] * Mpowers[1]
-            let V = Mpowers[5] * V1 + V2 + coeffs[0] * I
+            V = Mpowers[5] * V1 + V2 + coeffs[0] * I
             
-            print("U = \(U)")
-            print("V = \(V)")
-            
-            guard let solve = (V-U).solve(2.0 * U) else {
-                print("returning nil")
-                return nil
+        } else if (order == 3 || order == 5 || order == 7 || order == 9) {
+            if (order == 9 && Mpowers.count == 6) {
+                Mpowers2.append(Matrix<Type>.eye(M.rows))
+                Mpowers2.append(Mpowers[1] * Mpowers[5])
             }
             
-            print("solve = \(solve)")
-            F = solve + I
+            U = coeffs[1] * Matrix<Type>.eye(M.rows)
+            V = coeffs[0] * Matrix<Type>.eye(M.rows)
+            
+            for k in stride(from: order, through: 3, by: -2) {
+                U = U + coeffs[k] * Mpowers2[k-2]
+                V = V + coeffs[k-1] * Mpowers2[k-2]
+            }
+            
+            U = M * U
+            
+        } else {
+            return nil
         }
+        
+        print("U = \(U)")
+        print("V = \(V)")
+        
+        guard let solve = (V-U).solve(2.0 * U) else {
+            print("returning nil")
+            return nil
+        }
+        
+        print("solve = \(solve)")
+        F = solve + I
         
         return F
     }
