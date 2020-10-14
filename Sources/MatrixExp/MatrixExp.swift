@@ -23,10 +23,35 @@ class MatrixExp<Type> where Type: Exponentiable {
             }
         } else {
             let (scaling, order, Mpowers) = expmParams(for: matrix)
-            print("scaling = \(scaling)")
             print("order = \(order)")
+            print("scaling = \(scaling)")
             print("Mpowers = \(Mpowers)")
-            result = padeApprox(for: matrix, Mpowers: Mpowers, order: order)!
+            
+            let factor = scaling > 0 ? Type(floatLiteral: pow(2.0, Double(scaling)) as! Type.FloatLiteralType) : 1.0
+            let scaledM = matrix.map { $0 / factor }
+            
+            var scaledMpowers = Mpowers
+            
+            if (scaling > 0) {
+                for k in 0..<Mpowers.count {
+                    let factor = Type(floatLiteral: pow(2.0, Double((k+1) * scaling)) as! Type.FloatLiteralType)
+                    print("k = \(k), factor = \(factor)")
+                    scaledMpowers[k] = Mpowers[k].map { $0 / factor }
+                }
+            }
+            
+            print("scaledM = \(scaledM)")
+            print("scaledMpowers = \(scaledMpowers)")
+            
+            result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
+            print("result = \(result)")
+            
+            if (scaling > 0) {
+                for _ in 0..<scaling {
+                    result = result * result
+                    print("result = \(result)")
+                }
+            }
         }
         
         print("output = \(result)")
