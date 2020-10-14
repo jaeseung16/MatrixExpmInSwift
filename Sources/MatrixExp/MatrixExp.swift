@@ -78,12 +78,12 @@ class MatrixExp<Type> where Type: Exponentiable {
         return matrix.rows == matrix.columns
     }
     
-    static func sinch(_ x: Double) -> Double {
-        var value: Double
+    static func sinch(_ x: Type) -> Type {
+        var value: Type
         if (x == 0.0) {
-            value = 1
+            value = Type(floatLiteral: 1.0 as! Type.FloatLiteralType)
         } else {
-            value = sinh(x) / x
+            value = (x.exponentiation() - (-x).exponentiation()) / x / Type(floatLiteral: 2.0 as! Type.FloatLiteralType)
         }
         return x
     }
@@ -269,6 +269,56 @@ class MatrixExp<Type> where Type: Exponentiable {
     
     static func isNonNegative(_ M: Matrix<Double>) -> Bool {
         return M.forall {$0 >= 0}
+    }
+    
+    static func recomputeBlockDiag(_ matrix: Matrix<Type>, exponentiated: inout Matrix<Type>, structure: [Int]) {
+        let n = matrix.rows - 1
+        let two = Type(floatLiteral: 2.0 as! Type.FloatLiteralType)
+        
+        for k in 0..<n {
+            switch structure[k] {
+            case 1:
+                let t11 = matrix[k, k]
+                let t22 = matrix[k+1, k+1]
+                
+                let ave = (t11 + t22) / two
+                let df = (t11 - t22) / two
+                
+                var x12: Type
+                if (max(ave.length as! Double, df.length as! Double) < Double.greatestFiniteMagnitude) {
+                    let factor = ave.exponentiation() * sinch((t22 - t11) / two)
+                    x12 = matrix[k, k+1] * factor
+                } else {
+                    let factor = (t22.exponentiation() - t11.exponentiation()) / (t22 - t11)
+                    x12 = matrix[k, k+1] * factor
+                }
+                exponentiated[k,k] = t11.exponentiation()
+                exponentiated[k,k+1] = x12.exponentiation()
+                exponentiated[k+1, k+1] = t22.exponentiation()
+            case 2:
+                let a = matrix[k, k]
+                let b = matrix[k, k+1]
+                let c = matrix[k+1, k]
+                let d = matrix[k+1, k+1]
+                
+                let ave = (a + d) / two
+                let df = (a - d) / two
+                
+                let μ = df * df + two * two * b * c
+                let delta = μ.squareRoot() / two
+                let expad2 = ( ave / two ).exponentiation()
+                let coshdelta = ( delta.exponentiation() + (-delta).exponentiation() ) / two
+                let sinchdelta = sinch(delta)
+                
+                exponentiated[k,k] = expad2 * ( coshdelta + df * sinchdelta)
+                exponentiated[k,k+1] = expad2 * b * sinchdelta
+                exponentiated[k+1,k] = expad2 * c * sinchdelta
+                exponentiated[k+1, k+1] = expad2 * ( coshdelta - df * sinchdelta)
+                
+            default:
+                continue
+            }
+        }
     }
 }
 
