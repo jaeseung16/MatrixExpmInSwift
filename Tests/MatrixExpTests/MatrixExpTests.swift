@@ -44,7 +44,7 @@ final class MatrixExpTests: XCTestCase {
     func testScalingAndOrder() {
         let M = Matrix<Double>(rows: [[0, 1], [1, 0]])
         let order = 13
-        let scaling = -2
+        let scaling = 0
         
         let (s, o, _) = MatrixExp<Double>.expmParams(for: M)
 

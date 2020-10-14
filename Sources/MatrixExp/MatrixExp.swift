@@ -63,10 +63,6 @@ class MatrixExp<Type> where Type: Exponentiable {
         return x
     }
     
-    static func ell(T: Matrix<Double>, coeff: Double, order: Int) -> Double {
-        return 0.0
-    }
-    
     static func expmParams(for M: Matrix<Type>) -> (Int, Int, [Matrix<Type>]) {
         // Use old estimate first
         // TODO: Implement the logic for the smaller order: 3, 5, 7, and 9
@@ -76,15 +72,54 @@ class MatrixExp<Type> where Type: Exponentiable {
         Mpowers[3] = Mpowers[1] * Mpowers[1]
         Mpowers[5] = Mpowers[1] * Mpowers[3]
         
-        let order = 13
-        let norm1 = M.manhattanNorm as! Double
-        let theta = MatrixExpConst<Type>.theta(for: order)!
+        var s = 0
+        var order = 0
         
-        let needAName = norm1/theta
+        let d4 = pow(Mpowers[3].manhattanNorm as! Double, 1.0/4.0)
+        let d6 = pow(Mpowers[5].manhattanNorm as! Double, 1.0/6.0)
+        let eta1 = max(d4, d6)
         
-        let t = log2(needAName.significand)
-        let s = needAName.exponent - (t == 0.5 ? 1 : 0)
+        if (eta1 <= MatrixExpConst<Double>.theta(for: 3)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[0], order: 3)! == 0.0) {
+            order = 3
+            return (s, order, Mpowers)
+        }
+        if (eta1 <= MatrixExpConst<Double>.theta(for: 5)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[1], order: 5)! == 0.0) {
+            order = 5
+            return (s, order, Mpowers)
+        }
         
+        let d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
+        let eta3 = max(36, d8)
+        if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7)! == 0.0) {
+            order = 7
+            return (s, order, Mpowers)
+        }
+        if (eta3 <= MatrixExpConst<Double>.theta(for: 9)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[3], order: 9)! == 0.0) {
+            order = 9
+            return (s, order, Mpowers)
+        }
+        
+        let d10 = pow((Mpowers[3] * Mpowers[5]).manhattanNorm as! Double, 1.0/10.0)
+        let eta4 = max(d8, d10)
+        let eta5 = min(eta3, eta4)
+        s = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: 13)! ) ), 0))
+        
+        let factor = Type(floatLiteral: pow(2.0, Double(s)) as! Type.FloatLiteralType)
+        let scaledM = M.map { $0 / factor }
+        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
+        if (sFromEll != nil) {
+            s = s + Int(sFromEll!)
+        } else {
+            let norm1 = M.manhattanNorm as! Double
+            let theta = MatrixExpConst<Type>.theta(for: order)!
+            
+            let needAName = norm1/theta
+            
+            let t = log2(needAName.significand)
+            s = needAName.exponent - (t == 0.5 ? 1 : 0)
+        }
+        order = 13
+
         return (s, order, Mpowers)
     }
     
@@ -143,7 +178,7 @@ class MatrixExp<Type> where Type: Exponentiable {
         return matrix == matrix.adjoint
     }
     
-    static func ell(_ matrix: Matrix<Type>, coeff: Type, order: Int) -> Double? {
+    static func ell(_ matrix: Matrix<Type>, coeff: Double, order: Int) -> Double? {
         guard let realValueOfCoeff = coeff.length as? Double else {
             print("coeff should be real: coeff = \(coeff)")
             return nil
@@ -162,17 +197,15 @@ class MatrixExp<Type> where Type: Exponentiable {
         var estimatedNorm: Double?
         var Mpower = Matrix<Double>.eye(M.rows)
         
-        if (M.rows < 50) {
+        if (M.rows < 50 || !isNonNegative(M)) {
             for _ in 0..<power {
                 Mpower = M * Mpower
             }
             estimatedNorm = Mpower.manhattanNorm
-        } else if (isPositive(M)) {
+        } else if (isNonNegative(M)) {
             var e = Matrix<Double>(Vector<Double>(repeating: 1.0, count: M.rows))
-            print("initial e = \(e)")
             for k in 0..<power {
                 e = M.transpose * e
-                print("\(k)th e = \(e)")
             }
             estimatedNorm = e.infNorm
         } else {
@@ -185,7 +218,7 @@ class MatrixExp<Type> where Type: Exponentiable {
         return estimatedNorm
     }
     
-    static func isPositive(_ M: Matrix<Double>) -> Bool {
+    static func isNonNegative(_ M: Matrix<Double>) -> Bool {
         return M.forall {$0 >= 0}
     }
 }
