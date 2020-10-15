@@ -3,7 +3,7 @@ import Numerics
 import RealModule
 import LANumerics
 
-class MatrixExp<Type> where Type: Exponentiable {
+class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     var text = "Hello, World!"
     
     static func evaluate(for matrix: Matrix<Type>) -> Matrix<Type>? {
@@ -12,23 +12,51 @@ class MatrixExp<Type> where Type: Exponentiable {
             return nil
         }
         
+        var copiedMatrix = matrix
         print("input = \(matrix)")
         var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
         print("\(result)")
+        
+        print("isSchur = \(isSchur(matrix))")
+        print("isHermitian = \(isHermitian(matrix))")
+        
+        var schurFact = false
+        var recomputeDiags = false
+        var schurVectors = Matrix<Type>.eye(matrix.rows)
+        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: matrix.rows)
+        if (isSchur(matrix)) {
+            recomputeDiags = true
+        } else if (isHermitian(matrix)) {
+            (eigenValues, copiedMatrix, schurVectors) = matrix.schur()!
+            print("eigenValues = \(eigenValues)")
+            print("schurForm = \(copiedMatrix)")
+            print("schurVectors = \(schurVectors)")
+            recomputeDiags = true
+            schurFact = true
+        }
         
         if (isDiag(matrix)) {
             print("diag")
             for k in 0..<matrix.columns {
                 result[k, k] = matrix[k, k].exponentiation()
             }
+        } else if (schurFact) {
+            var expSchurForm = Matrix<Type>.eye(matrix.rows)
+            for k in 0..<copiedMatrix.columns {
+                expSchurForm[k, k] = copiedMatrix[k, k].exponentiation()
+            }
+            result = schurVectors * expSchurForm * schurVectors.adjoint
         } else {
-            let (scaling, order, Mpowers) = expmParams(for: matrix)
+            let blockFormat = recomputeDiags ? quasiTrianglularStructure(copiedMatrix) : nil
+            print("blockFormat = \(blockFormat)")
+            
+            let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
             print("order = \(order)")
             print("scaling = \(scaling)")
             print("Mpowers = \(Mpowers)")
             
             let factor = scaling > 0 ? Type(floatLiteral: pow(2.0, Double(scaling)) as! Type.FloatLiteralType) : 1.0
-            let scaledM = matrix.map { $0 / factor }
+            var scaledM = copiedMatrix.map { $0 / factor }
             
             var scaledMpowers = Mpowers
             
@@ -45,11 +73,22 @@ class MatrixExp<Type> where Type: Exponentiable {
             
             result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
             print("result = \(result)")
+            if (recomputeDiags) {
+                print("scaledM = \(scaledM)")
+                recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+                print("recomputed result = \(result)")
+            }
             
             if (scaling > 0) {
                 for _ in 0..<scaling {
                     result = result * result
                     print("result = \(result)")
+                    if (recomputeDiags) {
+                        scaledM = 2.0 * scaledM
+                        recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+                        print("scaledM = \(scaledM)")
+                        print("recomputed result = \(result)")
+                    }
                 }
             }
         }
@@ -85,7 +124,7 @@ class MatrixExp<Type> where Type: Exponentiable {
         } else {
             value = (x.exponentiation() - (-x).exponentiation()) / x / Type(floatLiteral: 2.0 as! Type.FloatLiteralType)
         }
-        return x
+        return value
     }
     
     static func expmParams(for M: Matrix<Type>) -> (Int, Int, [Matrix<Type>]) {
@@ -285,7 +324,8 @@ class MatrixExp<Type> where Type: Exponentiable {
                 let df = (t11 - t22) / two
                 
                 var x12: Type
-                if (max(ave.length as! Double, df.length as! Double) < Double.greatestFiniteMagnitude) {
+                // Compare lengths because Type can be Complex
+                if (max(ave.length as! Double, df.length as! Double) < log(Double.greatestFiniteMagnitude)) {
                     let factor = ave.exponentiation() * sinch((t22 - t11) / two)
                     x12 = matrix[k, k+1] * factor
                 } else {
@@ -293,7 +333,7 @@ class MatrixExp<Type> where Type: Exponentiable {
                     x12 = matrix[k, k+1] * factor
                 }
                 exponentiated[k,k] = t11.exponentiation()
-                exponentiated[k,k+1] = x12.exponentiation()
+                exponentiated[k,k+1] = x12
                 exponentiated[k+1, k+1] = t22.exponentiation()
             case 2:
                 let a = matrix[k, k]
@@ -304,9 +344,9 @@ class MatrixExp<Type> where Type: Exponentiable {
                 let ave = (a + d) / two
                 let df = (a - d) / two
                 
-                let μ = df * df + two * two * b * c
+                let μ = two * two * (df * df + b * c)
                 let delta = μ.squareRoot() / two
-                let expad2 = ( ave / two ).exponentiation()
+                let expad2 = ave.exponentiation()
                 let coshdelta = ( delta.exponentiation() + (-delta).exponentiation() ) / two
                 let sinchdelta = sinch(delta)
                 
