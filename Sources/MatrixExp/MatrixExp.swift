@@ -320,5 +320,50 @@ class MatrixExp<Type> where Type: Exponentiable {
             }
         }
     }
+    
+    static func quasiTrianglularStructure(_ matrix: Matrix<Type>) -> [Int] {
+        let zero = Type(floatLiteral: 0.0 as! Type.FloatLiteralType)
+        var structure = [Int]()
+        
+        print("matrix.rows = \(matrix.rows)")
+        if (matrix.rows == 1) {
+            structure.append(0)
+            return structure
+        } else if (matrix.rows == 2) {
+            if (matrix[1, 0] == zero) {
+                structure.append(1)
+                return structure
+            } else {
+                structure.append(2)
+                return structure
+            }
+        }
+        
+        var k = 0
+        
+        while (k < (matrix.rows - 2)) {
+            if (matrix[k+1,k] != zero) {
+                structure.append(2)
+                structure.append(0)
+                k = k + 2
+            } else if (matrix[k+1, k] == zero && matrix[k+2, k+1] == zero) {
+                structure.append(1)
+                k = k + 1
+            } else {
+                structure.append(0)
+                k = k + 1
+            }
+        }
+        
+        print("structure.count = \(structure.count)")
+        
+        if (matrix[matrix.rows-1, matrix.rows-2] != zero) {
+            structure.append(2)
+        } else if (structure.last == 0 || structure.last == 1) {
+            structure.append(1)
+        }
+        
+        return structure
+    }
 }
 

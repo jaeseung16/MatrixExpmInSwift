@@ -95,6 +95,17 @@ final class MatrixExpTests: XCTestCase {
         XCTAssertEqual(expected, result)
     }
 
+    func testQuasiTrianglularStructure() {
+        let M = Matrix<Double>(rows: [[1, -1, 0, 0],
+                                      [0, 1, 1, 0],
+                                      [0, 0, 1, 1],
+                                      [0, 0, 1, 1]])
+        
+        let expected = [1, 0, 2]
+        let result = MatrixExp<Double>.quasiTrianglularStructure(M)
+        
+        XCTAssertEqual(expected, result)
+    }
 
     static var allTests = [
         ("testExample", testExample),
@@ -105,6 +116,7 @@ final class MatrixExpTests: XCTestCase {
         ("testEvaluate", testEvaluate),
         ("testEvaluate2", testEvaluate2),
         ("testEvaluate3", testEvaluate3),
-        ("testEvaluateComplex", testEvaluateComplex)
+        ("testEvaluateComplex", testEvaluateComplex),
+        ("testQuasiTrianglularStructure", testQuasiTrianglularStructure)
     ]
 }
