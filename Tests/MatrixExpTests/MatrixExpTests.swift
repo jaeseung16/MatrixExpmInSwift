@@ -127,6 +127,44 @@ final class MatrixExpTests: XCTestCase {
         
         XCTAssertEqual(expected, result)
     }
+    
+    func testNormEst1() {
+        let M = Matrix<Double>(rows: [[1, -1, 0, 0],
+                                      [0, 1, 1, 0],
+                                      [0, 0, 1, 1],
+                                      [0, 0, 1, 1]])
+        
+        let normEst = NormEst1(A: M)
+        
+        let expected = 2
+        let result = normEst.t
+        
+        XCTAssertEqual(expected, result)
+    }
+    
+    func testNormEst1Undupli() {
+        let M = Matrix<Double>(rows: [[1, -1, 0, 0],
+                                      [0, 1, 1, 0],
+                                      [0, 0, 1, 1],
+                                      [0, 0, 1, 1]])
+        let S = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
+                                         [0.0, 0.0, 0.0, 1.0]])
+        //let oldS = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
+        //                                    [0.0, 0.0, 0.0, 1.0]])
+        let oldS = Matrix<Double>()
+        let prnt = false
+        
+        let normEst = NormEst1(A: M)
+        
+        var newS: Matrix<Double>
+        var r: Int
+        (newS, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
+        
+        let expectedS = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
+                                                 [0.0, 0.0, 0.0 ,0.0]])
+        
+        //XCTAssertEqual(expectedS, newS)
+    }
 
     static var allTests = [
         ("testExample", testExample),
@@ -139,6 +177,8 @@ final class MatrixExpTests: XCTestCase {
         ("testEvaluate3", testEvaluate3),
         ("testEvaluate4", testEvaluate4),
         ("testEvaluateComplex", testEvaluateComplex),
-        ("testQuasiTrianglularStructure", testQuasiTrianglularStructure)
+        ("testQuasiTrianglularStructure", testQuasiTrianglularStructure),
+        ("testNormEst1",testNormEst1),
+        ("testNormEst1Undupli", testNormEst1Undupli)
     ]
 }
