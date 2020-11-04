@@ -79,11 +79,10 @@ class NormEst1 {
         let B1 = 2.0 * NormEst1.randomMatrix(rows: n, columns: 1)
         let B2 = Matrix<Double>(repeating: 1.0, rows: n, columns: 1)
         Xtemp[0..<n, 1..<t] = NormEst1.mysign(A: B1 - B2)
-        self.X = Xtemp.map { $0 / Double(n) }
         
-        print("self.n = \(self.n)")
-        print("self.t = \(self.t)")
-        print("self.X = \(self.X)")
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Double>(), prnt: prnt)
+        
+        self.X = Xtemp.map { $0 / Double(n) }
         
         let itmax = 5
         
@@ -98,7 +97,7 @@ class NormEst1 {
         var est_j = 0
         var info = 0
         
-        var estimate = 0.0
+        var est = 0.0
         
         while (true) {
             it += 1
@@ -125,9 +124,9 @@ class NormEst1 {
                 vals_ind.append(ind[m[k]])
             }
             
-            estimate = vals[0]
+            est = vals[0]
             
-            if (estimate > est_old || it == 2) {
+            if (est > est_old || it == 2) {
                 est_j = vals_ind[0]
                 W = Y[0..<n, (m[0]-1)..<m[0]].vector
             }
@@ -139,12 +138,12 @@ class NormEst1 {
                 }
             }
             
-            if (it >= 2 && estimate <= est_old) {
-                estimate = est_old
+            if (it >= 2 && est <= est_old) {
+                est = est_old
                 info = 2
                 break
             }
-            est_old = estimate
+            est_old = est
             
             if (it > itmax) {
                 it = itmax
@@ -246,28 +245,28 @@ class NormEst1 {
         if (prnt) {
             switch (info) {
             case 1:
-                print("MATLAB:normest1:TerminateIterationLimitReachedn")
+                print("TerminateIterationLimitReachedn")
             case 2:
-                print("MATLAB:normest1:TerminateEstimateNotIncreased")
+                print("TerminateEstimateNotIncreased")
             case 3:
-                print("MATLAB:normest1:TerminateRepeatedSignMatrix")
+                print("TerminateRepeatedSignMatrix")
             case 4:
-                print("MATLAB:normest1:TerminatePowerMethodConvergenceTest")
+                print("TerminatePowerMethodConvergenceTest")
             case 5:
-                print("MATLAB:normest1:TerminateRepeatedUnitVectors")
+                print("TerminateRepeatedUnitVectors")
             default:
-                print("MATLAB:normest1")
+                print("")
             }
         }
         
-        self.estimate = estimate
+        self.estimate = est
         numberOfIterations = it
         numberOfProducts = nmv
         
         V = Vector<Double>(repeating: 0.0, count: n)
         V[est_j] = 1
         
-        print("MATLAB:normest1:RepeatedUnitVectors \(rpt_S)")
+        print("RepeatedUnitVectors \(rpt_S)")
         
     }
     
@@ -297,7 +296,7 @@ class NormEst1 {
         var rpt_e = 0
         
         var Y: Matrix<Double>
-        if (t == A.rows || A.rows <= 4) {
+        if (self.t == A.rows || A.rows <= 4) {
             Y = A
             
             let absY = Y.map { abs($0) }
@@ -319,8 +318,8 @@ class NormEst1 {
             self.estimate = vals[0]
             
             V = Vector<Double>(repeating: 0.0, count: A.rows)
-            V[m[A.rows]] = 1.0
-            W = Y[0..<A.rows, (m[A.rows]-1)..<m[A.rows]].vector
+            V[m[A.rows-1]] = 1.0
+            W = Y[0..<A.rows, m[A.rows-1]..<(m[A.rows-1]+1)].vector
             
             numberOfIterations = 0
             numberOfProducts = 1
@@ -329,39 +328,32 @@ class NormEst1 {
             return
         }
         
-        var Xtemp = Matrix<Double>(repeating : 1.0, rows: A.rows, columns: abs(t))
+        var Xtemp = Matrix<Double>(repeating : 1.0, rows: A.rows, columns: self.t)
         
-        let B1 = 2.0 * NormEst1.randomMatrix(rows: A.rows, columns: 1)
-        let B2 = Matrix<Double>(repeating: 1.0, rows: n, columns: 1)
-        Xtemp[0..<n, 1..<t] = NormEst1.mysign(A: B1 - B2)
+        let B1 = 2.0 * NormEst1.randomMatrix(rows: A.rows, columns: self.t - 1)
+        let B2 = Matrix<Double>(repeating: 1.0, rows: A.rows, columns: self.t - 1)
+        Xtemp[0..<n, 1..<self.t] = NormEst1.mysign(A: B1 - B2)
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Double>(), prnt: prnt)
         self.X = Xtemp.map { $0 / Double(A.rows) }
-        
-        print("self.n = \(self.n)")
-        print("self.t = \(self.t)")
-        print("self.X = \(self.X)")
-        
-        print("mysign(A) = \(NormEst1.mysign(A: A))")
         
         let itmax = 5
         
         var it = 0
         var nmv = 0
         
-        var ind = [Int](repeating: 0, count: t)
-        var ind_hist = [Int](repeating: 0, count: t)
-        var S = Matrix<Double>(rows: n, columns: t)
+        var ind = [Int](repeating: 0, count: self.t)
+        var ind_hist = [Int](repeating: 0, count: self.t)
+        var S = Matrix<Double>(rows: n, columns: self.t)
         
         var est_old = 0.0
         var est_j = 0
         var info = 0
         
-        var estimate = 0.0
-        
+        var est = 0.0
         while (true) {
             it += 1
             
             Y = self.A * self.X
-            //var Y = normapp(self.A, 'notransp', self.X)
             nmv += 1
             
             let absY = Y.map { abs($0) }
@@ -379,30 +371,30 @@ class NormEst1 {
             let m = sortedVals.map { $0.offset }
             
             var vals_ind = [Int]()
-            for k in 0..<t {
+            for k in 0..<self.t {
                 vals_ind.append(ind[m[k]])
             }
+   
+            est = vals[0]
             
-            estimate = vals[0]
-            
-            if (estimate > est_old || it == 2) {
+            if (est > est_old || it == 2) {
                 est_j = vals_ind[0]
-                W = Y[0..<n, (m[0]-1)..<m[0]].vector
+                W = Y[0..<n, m[0]..<(m[0]+1)].vector
             }
             
             if (prnt) {
                 print("\(it): ")
-                for k in 0..<t {
+                for k in 0..<self.t {
                     print("\(vals_ind[k]), \(vals[k])")
                 }
             }
             
-            if (it >= 2 && estimate <= est_old) {
-                estimate = est_old
+            if (it >= 2 && est <= est_old) {
+                est = est_old
                 info = 2
                 break
             }
-            est_old = estimate
+            est_old = est
             
             if (it > itmax) {
                 it = itmax
@@ -417,28 +409,29 @@ class NormEst1 {
             let SS = oldS.transpose * S
             let absSS = SS.map { abs($0) }
             var maxVector = Vector<Double>()
-            for k in 0..<t {
-                let maxValue = absSS[0..<t, (k-1)..<k].reduce { max($0, $1) }
+            for k in 0..<self.t {
+                let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
                 maxVector.append(maxValue == Double(n) ? 1 : 0)
             }
             let np = maxVector.reduce(0, +)
             
-            if (np == Double(t)) {
+            if (np == Double(self.t)) {
                 info = 3
                 break
             }
-            
+
             let r: Int
             (S, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
             rpt_S = rpt_S + r
-            
-            let Z = A.transpose * S
+
+            //
+            let Z = self.A.transpose * S
             nmv += 1
-            
+        
             let absZ = Z.map { abs($0) }
             var Zvals = Vector<Double>()
-            for k in 0..<t {
-                let maxValue = absZ[(k-1)..<k, 0..<t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
+            for k in 0..<self.n {
+                let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
                 Zvals.append(maxValue)
             }
             
@@ -452,11 +445,9 @@ class NormEst1 {
             
             let sortedZVals = Zvals.enumerated().sorted(by: {$0.element > $1.element})
             let m2 = sortedZVals.map { $0.offset }
-            
-            var imax = t
-            
+            var imax = self.t
             if (it == 1) {
-                ind = m2
+                ind = [Int](m2[0..<self.t])
                 ind_hist = ind
             } else {
                 let ismember = m2.map { ind_hist.contains($0) ? 1 : 0 }
@@ -468,13 +459,13 @@ class NormEst1 {
                     print("rep e_j = \(rep)")
                 }
                 
-                if (rep == t) {
+                if (rep == self.t) {
                     info = 5
                     break
                 }
                 
                 var j = 1
-                for i in 1...t {
+                for i in 1...self.t {
                     if (j > n) {
                         imax = i - 1
                         break
@@ -495,38 +486,38 @@ class NormEst1 {
                 ind_hist.append(contentsOf: ind[0..<imax])
             }
             
-            self.X = Matrix<Double>(repeating: 0.0, rows: n, columns: t)
+            self.X = Matrix<Double>(repeating: 0.0, rows: n, columns: self.t)
             for j in 0..<imax {
-                X[ind[j], j] = 1
+                self.X[ind[j], j] = 1
             }
         }
         
-        if (prnt) {
+        if (true) {
             switch (info) {
             case 1:
-                print("MATLAB:normest1:TerminateIterationLimitReachedn")
+                print("TerminateIterationLimitReachedn")
             case 2:
-                print("MATLAB:normest1:TerminateEstimateNotIncreased")
+                print("TerminateEstimateNotIncreased")
             case 3:
-                print("MATLAB:normest1:TerminateRepeatedSignMatrix")
+                print("TerminateRepeatedSignMatrix")
             case 4:
-                print("MATLAB:normest1:TerminatePowerMethodConvergenceTest")
+                print("TerminatePowerMethodConvergenceTest")
             case 5:
-                print("MATLAB:normest1:TerminateRepeatedUnitVectors")
+                print("TerminateRepeatedUnitVectors")
             default:
-                print("MATLAB:normest1")
+                print("")
             }
         }
         
-        self.estimate = estimate
+        self.estimate = est
         numberOfIterations = it
         numberOfProducts = nmv
         
         V = Vector<Double>(repeating: 0.0, count: n)
         V[est_j] = 1
         
-        print("MATLAB:normest1:RepeatedUnitVectors \(rpt_S)")
-        print("MATLAB:normest1:RepeatedUnitVectors \(rpt_e)")
+        print("ParallelCol \(rpt_S)")
+        print("RepeatedUnitVectors \(rpt_e)")
     }
     
     static func mysign(A: Matrix<Double>) -> Matrix<Double> {
@@ -546,49 +537,47 @@ class NormEst1 {
             return (S, r)
         }
         
-        var W = Matrix<Double>(rows: n, columns: n)
+        var W = Matrix<Double>(rows: n, columns: 2 * t - 1)
         var jstart: Int
         var last_col: Int
         if (oldS.count == 0) {
             W[0..<n, 0..<1] = S[0..<n, 0..<1]
-            jstart = 2
-            last_col = 1
+            jstart = 1
+            last_col = 0
         } else {
             W[0..<n, 0..<t] = oldS
-            jstart = 1
-            last_col = t
+            jstart = 0
+            last_col = t-1
         }
         
-        for j in jstart...t {
+        for j in jstart..<t {
             var rpt = 0
-            while (isMaxN(S: Sout[0..<n, (j-1)..<j], W: W, n: n, last_col: last_col)) {
+            while (isMaxN(S: Sout[0..<n, j..<(j+1)], W: W, n: n, last_col: last_col)) {
                 rpt += 1
                 
                 let A = 2.0 * NormEst1.randomMatrix(rows: n, columns: 1)
                 let B = Matrix<Double>(repeating: 1.0, rows: n, columns: 1)
-                Sout[0..<n, (j-1)..<j] = NormEst1.mysign(A: A-B)
+                Sout[0..<n, j..<(j+1)] = NormEst1.mysign(A: A-B)
                 if (rpt > Int(Float(n)/Float(t))) {
                     break
                 }
             }
-            
             if prnt && rpt > 0 {
                 print("Unduplicate rpt = \(rpt)")
             }
             
             r += rpt > 0 ? 1 : 0
             
-            if (j < t) {
+            if (j < t-1) {
                 last_col += 1
-                W[0..<n, (last_col-1)..<last_col] = Sout[0..<n, (j-1)..<j]
+                W[0..<n, last_col..<(last_col+1)] = Sout[0..<n, j..<(j+1)]
             }
         }
-        
         return (Sout, r)
     }
     
     static func isMaxN(S: Matrix<Double>, W: Matrix<Double>, n: Int, last_col: Int) -> Bool {
-        let temp = S.transpose * W[0..<n, 0..<(last_col-1)]
+        let temp = S.transpose * W[0..<n, 0..<last_col]
         let absTemp = temp.map { abs($0) }
         let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, {max($0, $1)})
         return maxElement == Double(n)

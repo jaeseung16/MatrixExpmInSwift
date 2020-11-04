@@ -129,41 +129,52 @@ final class MatrixExpTests: XCTestCase {
     }
     
     func testNormEst1() {
-        let M = Matrix<Double>(rows: [[1, -1, 0, 0],
-                                      [0, 1, 1, 0],
-                                      [0, 0, 1, 1],
-                                      [0, 0, 1, 1]])
+        let 𝛼 = 1.0 - 1e-6
+        let rows = 100
         
-        let normEst = NormEst1(A: M)
+        var M = Matrix<Double>(rows: rows, columns: rows)
         
-        let expected = 2
-        let result = normEst.t
+        for k in 0..<rows {
+            for l in k..<rows {
+                M[k, l] = pow((-1.0 * 𝛼), Double(l-k))
+            }
+        }
         
-        XCTAssertEqual(expected, result)
+        let t = 6 // Use a negative value to print out more information
+        let expected = 99.995050161695914
+        
+        let normEst = NormEst1(A: M, t: t)
+        let result = normEst.estimate // 99.99505016169591
+        print("result = \(result)")
+        XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
     
     func testNormEst1Undupli() {
-        let M = Matrix<Double>(rows: [[1, -1, 0, 0],
-                                      [0, 1, 1, 0],
-                                      [0, 0, 1, 1],
-                                      [0, 0, 1, 1]])
-        let S = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
-                                         [0.0, 0.0, 0.0, 1.0]])
-        //let oldS = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
-        //                                    [0.0, 0.0, 0.0, 1.0]])
-        let oldS = Matrix<Double>()
-        let prnt = false
+        let S = Matrix<Double>(rows: [[1.0, -1.0, -1.0, 1.0],
+                                         [-1.0, 1.0, 1.0, -1.0],
+                                          [1.0, -1.0, -1.0, 1.0],
+                                          [-1.0, 1.0, 1.0, -1.0],
+                                          [1.0, -1.0, -1.0, 1.0],
+                                          [-1.0, 1.0, 1.0, -1.0],
+                                          [1.0, -1.0, -1.0, 1.0],
+                                          [-1.0, 1.0, 1.0, 1.0],
+                                          [1.0, 1.0, -1.0, 1.0],
+                                          [1.0, 1.0, 1.0, 1.0]])
+        let oldS = Matrix<Double>(rows: [[1.0, -1.0, 1.0, -1.0],
+                                            [1.0, 1.0, -1.0, 1.0],
+                                            [1.0, -1.0, 1.0, -1.0],
+                                            [1.0, 1.0, 1.0, -1.0],
+                                            [1.0, -1.0, -1.0, -1.0],
+                                            [1.0, 1.0, 1.0, -1.0],
+                                            [1.0, -1.0, 1.0, 1.0],
+                                            [1.0, 1.0, 1.0, -1.0],
+                                            [1.0, -1.0, -1.0, 1.0],
+                                            [1.0, -1.0, -1.0, -1.0]])
         
-        let normEst = NormEst1(A: M)
-        
-        var newS: Matrix<Double>
         var r: Int
-        (newS, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
+        (_, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: false)
         
-        let expectedS = Matrix<Double>(columns: [[0.0, 1.0, 0.0, 0.0],
-                                                 [0.0, 0.0, 0.0 ,0.0]])
-        
-        //XCTAssertEqual(expectedS, newS)
+        XCTAssertEqual(1, r)
     }
 
     static var allTests = [
