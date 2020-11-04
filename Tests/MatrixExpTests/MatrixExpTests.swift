@@ -143,8 +143,61 @@ final class MatrixExpTests: XCTestCase {
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
         
-        let normEst = NormEst1(A: M, t: t)
+        let normEst = NormEst1<Double>(A: M, t: t)
         let result = normEst.estimate // 99.99505016169591
+        
+        XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
+    }
+    
+    func testNormEst1Complex() {
+        let 𝛼 = 1.0 - 1e-6
+        let rows = 100
+        
+        var M = Matrix<Complex<Double>>(rows: rows, columns: rows)
+        
+        for k in 0..<rows {
+            for l in k..<rows {
+                M[k, l] = Complex(pow((-1.0 * 𝛼), Double(l-k)))
+            }
+        }
+        
+        let t = 6 // Use a negative value to print out more information
+        let expected = 99.995050161695914
+        
+        let normEst = NormEst1<Complex<Double>>(A: M, t: t)
+        let result = normEst.estimate // 99.99505016169591
+        print("result = \(result)")
+        XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
+    }
+    
+    func testNormEst1Complex2() {
+        var M = Matrix<Complex<Double>>(rows: [[Complex<Double>(0, 0), Complex<Double>(1, -1), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(1, 1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(-1, 1)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(1, -1), Complex<Double>(0, 0)]])
+        
+        let expected = 1.414213562373095
+        
+        let normEst = NormEst1<Complex<Double>>(A: M)
+        let result = normEst.estimate // 1.4142135623730951
+        print("result = \(result)")
+        XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
+    }
+    
+    func testNormEst1Complex3() {
+        var M = Matrix<Complex<Double>>(rows: [[Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(1, -1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(1, 1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, -1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(-1, 1)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(-1, -1), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(-1, 1), Complex<Double>(0, 0), Complex<Double>(0, 0)],
+                                               [Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(-1, -1), Complex<Double>(0, 0), Complex<Double>(0, 0), Complex<Double>(0, 0)]])
+        
+        let expected = 1.414213562373095
+        
+        let normEst = NormEst1<Complex<Double>>(A: M)
+        let result = normEst.estimate // 1.4142135623730951
         print("result = \(result)")
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
@@ -172,7 +225,7 @@ final class MatrixExpTests: XCTestCase {
                                             [1.0, -1.0, -1.0, -1.0]])
         
         var r: Int
-        (_, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: false)
+        (_, r) = NormEst1<Double>.undupli(S: S, oldS: oldS, prnt: false)
         
         XCTAssertEqual(1, r)
     }
@@ -189,7 +242,10 @@ final class MatrixExpTests: XCTestCase {
         ("testEvaluate4", testEvaluate4),
         ("testEvaluateComplex", testEvaluateComplex),
         ("testQuasiTrianglularStructure", testQuasiTrianglularStructure),
-        ("testNormEst1",testNormEst1),
+        ("testNormEst1", testNormEst1),
+        ("testNormEst1Complex", testNormEst1Complex),
+        ("testNormEst1Complex2", testNormEst1Complex2),
+        ("testNormEst1Complex3", testNormEst1Complex3),
         ("testNormEst1Undupli", testNormEst1Undupli)
     ]
 }

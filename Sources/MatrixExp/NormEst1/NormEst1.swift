@@ -9,25 +9,24 @@ import Foundation
 import Numerics
 import LANumerics
 
-class NormEst1 {
+class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
     // MARK: - Properties, Inputs
-    let A: Matrix<Double>
+    let A: Matrix<Type>
     let n: Int
-    let isReal: Bool
     var t = 2
-    var X: Matrix<Double>
+    var X: Matrix<Type>
     
     // MARK: - Properties
     //var prnt: Bool
     
     // MARK: - Properties, Results
     var estimate: Double
-    var V = Vector<Double>()
-    var W = Vector<Double>()
+    var V = Vector<Type>()
+    var W = Vector<Type>()
     var numberOfIterations: Int
     var numberOfProducts: Int
     
-    init(A: Matrix<Double>, t: Int = 2) {
+    init(A: Matrix<Type>, t: Int = 2) {
         /*
         guard A.rows == A.columns else {
             print("Cannot initialize. The matrix is not square.")
@@ -37,7 +36,6 @@ class NormEst1 {
         
         self.A = A
         self.n = A.rows
-        self.isReal = true
         
         /*
         guard abs(t) >= 1 && abs(t) <= max(A.rows, 2) else {
@@ -52,11 +50,11 @@ class NormEst1 {
         var rpt_S = 0
         var rpt_e = 0
         
-        var Y: Matrix<Double>
+        var Y: Matrix<Type>
         if (self.t == A.rows || A.rows <= 4) {
             Y = A
             
-            let absY = Y.map { abs($0) }
+            let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
             
             var vals = Vector<Double>()
             for k in 0..<absY.columns {
@@ -74,24 +72,24 @@ class NormEst1 {
             
             self.estimate = vals[0]
             
-            V = Vector<Double>(repeating: 0.0, count: A.rows)
+            V = Vector<Type>(repeating: 0.0, count: A.rows)
             V[m[A.rows-1]] = 1.0
             W = Y[0..<A.rows, m[A.rows-1]..<(m[A.rows-1]+1)].vector
             
             numberOfIterations = 0
             numberOfProducts = 1
             
-            self.X = Matrix<Double>()
+            self.X = Matrix<Type>()
             return
         }
         
-        var Xtemp = Matrix<Double>(repeating : 1.0, rows: A.rows, columns: self.t)
+        var Xtemp = Matrix<Type>(repeating : 1.0, rows: A.rows, columns: self.t)
         
         let B1 = 2.0 * NormEst1.randomMatrix(rows: A.rows, columns: self.t - 1)
-        let B2 = Matrix<Double>(repeating: 1.0, rows: A.rows, columns: self.t - 1)
+        let B2 = Matrix<Type>(repeating: 1.0, rows: A.rows, columns: self.t - 1)
         Xtemp[0..<n, 1..<self.t] = NormEst1.mysign(A: B1 - B2)
-        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Double>(), prnt: prnt)
-        self.X = Xtemp.map { $0 / Double(A.rows) }
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), prnt: prnt)
+        self.X = Xtemp.map { $0 / Type(floatLiteral: Double(A.rows) as! Type.FloatLiteralType) }
         
         let itmax = 5
         
@@ -100,7 +98,7 @@ class NormEst1 {
         
         var ind = [Int](repeating: 0, count: self.t)
         var ind_hist = [Int](repeating: 0, count: self.t)
-        var S = Matrix<Double>(rows: n, columns: self.t)
+        var S = Matrix<Type>(rows: n, columns: self.t)
         
         var est_old = 0.0
         var est_j = 0
@@ -113,7 +111,7 @@ class NormEst1 {
             Y = self.A * self.X
             nmv += 1
             
-            let absY = Y.map { abs($0) }
+            let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
             
             var vals = Vector<Double>()
             for k in 0..<absY.columns {
@@ -163,29 +161,31 @@ class NormEst1 {
             S = NormEst1.mysign(A: Y)
             
             // For Double
-            let SS = oldS.transpose * S
-            let absSS = SS.map { abs($0) }
-            var maxVector = Vector<Double>()
-            for k in 0..<self.t {
-                let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
-                maxVector.append(maxValue == Double(n) ? 1 : 0)
-            }
-            let np = maxVector.reduce(0, +)
-            
-            if (np == Double(self.t)) {
-                info = 3
-                break
-            }
+            if (Type(floatLiteral: 0.0 as! Type.FloatLiteralType) is Double) {
+                let SS = oldS.transpose * S
+                let absSS = SS.map { $0.length as! Double }
+                var maxVector = Vector<Double>()
+                for k in 0..<self.t {
+                    let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
+                    maxVector.append(maxValue == Double(n) ? 1 : 0)
+                }
+                let np = maxVector.reduce(0, +)
+                
+                if (np == Double(self.t)) {
+                    info = 3
+                    break
+                }
 
-            let r: Int
-            (S, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
-            rpt_S = rpt_S + r
+                let r: Int
+                (S, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
+                rpt_S = rpt_S + r
+            }
 
             //
-            let Z = self.A.transpose * S
+            let Z = self.A.adjoint * S
             nmv += 1
         
-            let absZ = Z.map { abs($0) }
+            let absZ = Z.map { $0.length as! Double }
             var Zvals = Vector<Double>()
             for k in 0..<self.n {
                 let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
@@ -243,7 +243,7 @@ class NormEst1 {
                 ind_hist.append(contentsOf: ind[0..<imax])
             }
             
-            self.X = Matrix<Double>(repeating: 0.0, rows: n, columns: self.t)
+            self.X = Matrix<Type>(repeating: 0.0, rows: n, columns: self.t)
             for j in 0..<imax {
                 self.X[ind[j], j] = 1
             }
@@ -270,20 +270,19 @@ class NormEst1 {
         numberOfIterations = it
         numberOfProducts = nmv
         
-        V = Vector<Double>(repeating: 0.0, count: n)
+        V = Vector<Type>(repeating: 0.0, count: n)
         V[est_j] = 1
         
         print("ParallelCol \(rpt_S)")
         print("RepeatedUnitVectors \(rpt_e)")
     }
     
-    static func mysign(A: Matrix<Double>) -> Matrix<Double> {
-        let S = A.map { $0 < 0.0 ? -1.0 : 1.0}
-        
+    static func mysign(A: Matrix<Type>) -> Matrix<Type> {
+        let S = A.map { $0 == 0.0 ? 1.0 : ($0 / Type(floatLiteral: $0.length as! Type.FloatLiteralType))}
         return S
     }
     
-    static func undupli(S: Matrix<Double>, oldS: Matrix<Double>, prnt: Bool) -> (Matrix<Double>, Int) {
+    static func undupli(S: Matrix<Type>, oldS: Matrix<Type>, prnt: Bool) -> (Matrix<Type>, Int) {
         var Sout = S
         let n = S.rows
         let t = S.columns
@@ -294,7 +293,7 @@ class NormEst1 {
             return (S, r)
         }
         
-        var W = Matrix<Double>(rows: n, columns: 2 * t - 1)
+        var W = Matrix<Type>(rows: n, columns: 2 * t - 1)
         var jstart: Int
         var last_col: Int
         if (oldS.count == 0) {
@@ -313,7 +312,7 @@ class NormEst1 {
                 rpt += 1
                 
                 let A = 2.0 * NormEst1.randomMatrix(rows: n, columns: 1)
-                let B = Matrix<Double>(repeating: 1.0, rows: n, columns: 1)
+                let B = Matrix<Type>(repeating: 1.0, rows: n, columns: 1)
                 Sout[0..<n, j..<(j+1)] = NormEst1.mysign(A: A-B)
                 if (rpt > Int(Float(n)/Float(t))) {
                     break
@@ -333,19 +332,19 @@ class NormEst1 {
         return (Sout, r)
     }
     
-    static func isMaxN(S: Matrix<Double>, W: Matrix<Double>, n: Int, last_col: Int) -> Bool {
+    static func isMaxN(S: Matrix<Type>, W: Matrix<Type>, n: Int, last_col: Int) -> Bool {
         let temp = S.transpose * W[0..<n, 0..<last_col]
-        let absTemp = temp.map { abs($0) }
-        let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, {max($0, $1)})
+        let absTemp = temp.map { $0.length as! Double}
+        let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, { max($0, $1) })
         return maxElement == Double(n)
     }
     
-    static func randomMatrix(rows: Int, columns: Int) -> Matrix<Double> {
-        var elements = Vector<Double>()
+    static func randomMatrix(rows: Int, columns: Int) -> Matrix<Type> {
+        var elements = Vector<Type>()
         for _ in 0..<(rows * columns) {
-            elements.append(drand48())
+            elements.append(Type(floatLiteral: drand48() as! Type.FloatLiteralType))
         }
-        return Matrix<Double>(rows: rows, columns: columns, elements: elements)
+        return Matrix<Type>(rows: rows, columns: columns, elements: elements)
     }
     
 }
