@@ -128,8 +128,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     }
     
     static func expmParams(for M: Matrix<Type>) -> (Int, Int, [Matrix<Type>]) {
-        // Use old estimate first
-        // TODO: Implement the logic for the smaller order: 3, 5, 7, and 9
+        let isSmall = M.rows < 150
         
         var Mpowers = [Matrix<Type>](repeating: M, count: 6)
         Mpowers[1] = M * M
@@ -152,7 +151,14 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             return (s, order, Mpowers)
         }
         
-        let d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
+        var d8: Double
+        if (isSmall) {
+            d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
+        } else {
+            let normest = NormEst1<Type>(A: Mpowers[3] * Mpowers[3])
+            d8 = pow(normest.estimate, 1.0/8.0)
+        }
+        
         let eta3 = max(d6, d8)
         if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7)! == 0.0) {
             order = 7
@@ -163,7 +169,14 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             return (s, order, Mpowers)
         }
         
-        let d10 = pow((Mpowers[3] * Mpowers[5]).manhattanNorm as! Double, 1.0/10.0)
+        var d10: Double
+        if (isSmall) {
+            d10 = pow((Mpowers[3] * Mpowers[5]).manhattanNorm as! Double, 1.0/10.0)
+        } else {
+            let normest = NormEst1(A: Mpowers[3] * Mpowers[5])
+            d10 = pow(normest.estimate, 1.0/10.0)
+        }
+
         let eta4 = max(d8, d10)
         let eta5 = min(eta3, eta4)
         s = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: 13)! ) ), 0))
@@ -298,7 +311,11 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             estimatedNorm = e.infNorm
         } else {
             // MATLAB normAM has an implementation for this case
-            // However, we know that M is real and positive for matrix exponentiation
+            // expmParams
+            // Use normest1
+            // instead of calculating the power of a matrix
+            // it repeats the multiplication of a matrix and a vector
+            // Let's come back to this after refactoring MatrixExp and NormEst1
             // For now, return nil
             estimatedNorm = nil
         }
