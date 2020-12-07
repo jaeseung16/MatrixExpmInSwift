@@ -4,11 +4,9 @@ import RealModule
 import LANumerics
 
 class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
-    var text = "Hello, World!"
-    
     static func evaluate(for matrix: Matrix<Type>) -> Matrix<Type>? {
-        guard isSquare(matrix) else {
-            NSLog("Need a square matrix as an input: \(matrix) ")
+        guard matrix.isSquare else {
+            NSLog("Need a square matrix as an input: \(matrix)")
             return nil
         }
         
@@ -17,16 +15,16 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
         print("\(result)")
         
-        print("isSchur = \(isSchur(matrix))")
-        print("isHermitian = \(isHermitian(matrix))")
+        print("isSchur = \(matrix.isSchur)")
+        print("isHermitian = \(matrix.isHermitian)")
         
         var schurFact = false
         var recomputeDiags = false
         var schurVectors = Matrix<Type>.eye(matrix.rows)
         var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: matrix.rows)
-        if (isSchur(matrix)) {
+        if matrix.isSchur {
             recomputeDiags = true
-        } else if (isHermitian(matrix)) {
+        } else if matrix.isHermitian {
             (eigenValues, copiedMatrix, schurVectors) = matrix.schur()!
             print("eigenValues = \(eigenValues)")
             print("schurForm = \(copiedMatrix)")
@@ -35,7 +33,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             schurFact = true
         }
         
-        if (isDiag(matrix)) {
+        if (matrix.isDiag) {
             print("diag")
             for k in 0..<matrix.columns {
                 result[k, k] = matrix[k, k].exponentiation()
@@ -95,26 +93,6 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         
         print("output = \(result)")
         return result
-    }
-    
-    static func isDiag(_ matrix: Matrix<Type>) -> Bool {
-        var isDiag = false
-        
-        var diag = Vector<Type>()
-        
-        if (matrix.rows == matrix.columns) {
-            for k in 0..<matrix.columns {
-                diag.append(matrix[k,k])
-            }
-            isDiag = Matrix<Type>(diagonal: diag) == matrix
-        }
-        
-        return isDiag
-        
-    }
-    
-    static func isSquare(_ matrix: Matrix<Type>) -> Bool {
-        return matrix.rows == matrix.columns
     }
     
     static func sinch(_ x: Type) -> Type {
@@ -253,30 +231,6 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         F = solve + I
         
         return F
-    }
-    
-    static func isSchur(_ matrix: Matrix<Type>) -> Bool {
-        var result: Bool
-        
-        if (isScalar(matrix)) {
-            result = true
-        } else if (!isSquare(matrix)) {
-            result = false
-        } else if (matrix is Matrix<Double> || matrix is Matrix<Float>) {
-            result = matrix.isQuasiUpperTriangle
-        } else {
-            result = matrix.isUpperTriangle
-        }
-        
-        return result
-    }
-    
-    static func isScalar(_ matrix: Matrix<Type>) -> Bool {
-        return matrix.rows == 1 && matrix.columns == 1
-    }
-    
-    static func isHermitian(_ matrix: Matrix<Type>) -> Bool {
-        return matrix == matrix.adjoint
     }
     
     static func ell(_ matrix: Matrix<Type>, coeff: Double, order: Int) -> Double? {

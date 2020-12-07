@@ -4,16 +4,9 @@ import XCTest
 @testable import LANumerics
 
 final class MatrixExpTests: XCTestCase {
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(MatrixExp<Double>().text, "Hello, World!")
-    }
-    
     func testIsDiag() {
         let diagMatrix = Matrix<Double>(diagonal: [1.0, 0.5, 0.0, -1.0])
-        XCTAssertTrue(MatrixExp.isDiag(diagMatrix))
+        XCTAssertTrue(diagMatrix.isDiag)
     }
     
     func testDiag() {
@@ -231,7 +224,6 @@ final class MatrixExpTests: XCTestCase {
     }
 
     static var allTests = [
-        ("testExample", testExample),
         ("testIsDiag", testIsDiag),
         ("testDiag", testDiag),
         ("testPadeCoefficients", testPadeCoefficients),
