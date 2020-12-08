@@ -44,7 +44,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         }
         */
         
-        let prnt = (t < 0)
+        let toPrint = (t < 0)
         self.t = abs(t)
         
         var rpt_S = 0
@@ -56,14 +56,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             
             let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
             
-            var vals = Vector<Double>()
-            for k in 0..<absY.columns {
-                var summation = 0.0
-                for l in 0..<absY.rows {
-                    summation += absY[l, k]
-                }
-                vals.append(summation)
-            }
+            var vals = NormEst1.summationAlongRow(absY)
             
             let sortedVals = vals.enumerated().sorted(by: {$0.element > $1.element})
             
@@ -88,7 +81,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         let B1 = 2.0 * NormEst1.randomMatrix(rows: A.rows, columns: self.t - 1)
         let B2 = Matrix<Type>(repeating: 1.0, rows: A.rows, columns: self.t - 1)
         Xtemp[0..<n, 1..<self.t] = NormEst1.mysign(A: B1 - B2)
-        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), prnt: prnt)
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), toPrint: toPrint)
         self.X = Xtemp.map { $0 / Type(floatLiteral: Double(A.rows) as! Type.FloatLiteralType) }
         
         let itmax = 5
@@ -113,14 +106,8 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             
             let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
             
-            var vals = Vector<Double>()
-            for k in 0..<absY.columns {
-                var summation = 0.0
-                for l in 0..<absY.rows {
-                    summation += absY[l, k]
-                }
-                vals.append(summation)
-            }
+            var vals = NormEst1.summationAlongRow(absY)
+           
             let sortedVals = vals.enumerated().sorted(by: {$0.element > $1.element})
             vals = sortedVals.map { $0.element }
             let m = sortedVals.map { $0.offset }
@@ -137,7 +124,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 W = Y[0..<n, m[0]..<(m[0]+1)].vector
             }
             
-            if (prnt) {
+            if (toPrint) {
                 print("\(it): ")
                 for k in 0..<self.t {
                     print("\(vals_ind[k]), \(vals[k])")
@@ -177,7 +164,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 }
 
                 let r: Int
-                (S, r) = NormEst1.undupli(S: S, oldS: oldS, prnt: prnt)
+                (S, r) = NormEst1.undupli(S: S, oldS: oldS, toPrint: toPrint)
                 rpt_S = rpt_S + r
             }
 
@@ -212,7 +199,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 
                 rpt_e += rep
                 
-                if (rep > 0 && prnt) {
+                if (rep > 0 && toPrint) {
                     print("rep e_j = \(rep)")
                 }
                 
@@ -282,58 +269,70 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return S
     }
     
-    static func undupli(S: Matrix<Type>, oldS: Matrix<Type>, prnt: Bool) -> (Matrix<Type>, Int) {
-        var Sout = S
-        let n = S.rows
-        let t = S.columns
+    static func undupli(S: Matrix<Type>, oldS: Matrix<Type>, toPrint: Bool) -> (Matrix<Type>, Int) {
+        if (S.columns == 1) {
+            return (S, 0)
+        }
         
+        let nRows = S.rows
+        let nColumns = S.columns
+        var Sout = S
         var r = 0
         
-        if (t == 1) {
-            return (S, r)
-        }
-        
-        var W = Matrix<Type>(rows: n, columns: 2 * t - 1)
-        var jstart: Int
-        var last_col: Int
+        var startColumn: Int
+        var lastColumn: Int
+        var W = Matrix<Type>(rows: nRows, columns: 2 * nColumns - 1)
         if (oldS.count == 0) {
-            W[0..<n, 0..<1] = S[0..<n, 0..<1]
-            jstart = 1
-            last_col = 0
+            W[0..<nRows, 0..<1] = S[0..<nRows, 0..<1]
+            startColumn = 1
+            lastColumn = 0
         } else {
-            W[0..<n, 0..<t] = oldS
-            jstart = 0
-            last_col = t-1
+            W[0..<nRows, 0..<nColumns] = oldS
+            startColumn = 0
+            lastColumn = nColumns-1
         }
         
-        for j in jstart..<t {
+        for col in startColumn..<nColumns {
             var rpt = 0
-            while (isMaxN(S: Sout[0..<n, j..<(j+1)], W: W, n: n, last_col: last_col)) {
+            while (isMaxN(S: Sout[0..<nRows, col..<(col+1)], W: W, n: nRows, lastColumn: lastColumn)) {
                 rpt += 1
                 
-                let A = 2.0 * NormEst1.randomMatrix(rows: n, columns: 1)
-                let B = Matrix<Type>(repeating: 1.0, rows: n, columns: 1)
-                Sout[0..<n, j..<(j+1)] = NormEst1.mysign(A: A-B)
-                if (rpt > Int(Float(n)/Float(t))) {
+                let A = 2.0 * NormEst1.randomMatrix(rows: nRows, columns: 1)
+                let B = Matrix<Type>(repeating: 1.0, rows: nRows, columns: 1)
+                Sout[0..<nRows, col..<(col+1)] = NormEst1.mysign(A: A-B)
+                if (rpt > Int(Float(nRows)/Float(nColumns))) {
                     break
                 }
             }
-            if prnt && rpt > 0 {
+            
+            if toPrint && rpt > 0 {
                 print("Unduplicate rpt = \(rpt)")
             }
             
             r += rpt > 0 ? 1 : 0
             
-            if (j < t-1) {
-                last_col += 1
-                W[0..<n, last_col..<(last_col+1)] = Sout[0..<n, j..<(j+1)]
+            if (col < nColumns-1) {
+                lastColumn += 1
+                W[0..<nRows, lastColumn..<(lastColumn+1)] = Sout[0..<nRows, col..<(col+1)]
             }
         }
         return (Sout, r)
     }
     
-    static func isMaxN(S: Matrix<Type>, W: Matrix<Type>, n: Int, last_col: Int) -> Bool {
-        let temp = S.transpose * W[0..<n, 0..<last_col]
+    static func summationAlongRow(_ matrix: Matrix<Double>) -> Vector<Double> {
+        var vals = Vector<Double>()
+        for k in 0..<matrix.columns {
+            var summation = 0.0
+            for l in 0..<matrix.rows {
+                summation += matrix[l, k]
+            }
+            vals.append(summation)
+        }
+        return vals
+    }
+    
+    static func isMaxN(S: Matrix<Type>, W: Matrix<Type>, n: Int, lastColumn: Int) -> Bool {
+        let temp = S.transpose * W[0..<n, 0..<lastColumn]
         let absTemp = temp.map { $0.length as! Double}
         let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, { max($0, $1) })
         return maxElement == Double(n)

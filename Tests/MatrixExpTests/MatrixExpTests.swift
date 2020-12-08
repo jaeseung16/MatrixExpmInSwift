@@ -218,7 +218,7 @@ final class MatrixExpTests: XCTestCase {
                                             [1.0, -1.0, -1.0, -1.0]])
         
         var r: Int
-        (_, r) = NormEst1<Double>.undupli(S: S, oldS: oldS, prnt: false)
+        (_, r) = NormEst1<Double>.undupli(S: S, oldS: oldS, toPrint: false)
         
         XCTAssertEqual(1, r)
     }
