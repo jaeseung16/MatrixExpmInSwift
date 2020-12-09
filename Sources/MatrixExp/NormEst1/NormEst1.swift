@@ -13,8 +13,9 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
     // MARK: - Properties, Inputs
     let A: Matrix<Type>
     let n: Int
-    var t = 2
+    let t: Int
     var X: Matrix<Type>
+    let order: Int
     
     // MARK: - Properties
     //var prnt: Bool
@@ -27,7 +28,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
     var numberOfProducts: Int
     var terminationReason: NormEst1TerminationReason
     
-    init(A: Matrix<Type>, t: Int = 2, toPrint: Bool = false) {
+    init(A: Matrix<Type>, t: Int = 2, order: Int = 1, toPrint: Bool = false) {
         /*
         guard A.rows == A.columns else {
             print("Cannot initialize. The matrix is not square.")
@@ -46,16 +47,19 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         */
         
         self.t = t
+        self.order = order
         
         var rpt_S = 0
         var rpt_e = 0
         
         var Y: Matrix<Type>
         if (self.t == A.rows || A.rows <= 4) {
-            (self.estimate, self.V, self.W) = NormEst1.computeExactly(A)
+            print("Calling NormEst1.computeExactly \(A)")
+            (self.estimate, self.V, self.W) = NormEst1.computeExactly(A, order: order)
             numberOfIterations = 0
             numberOfProducts = 1
             self.X = Matrix<Type>()
+            self.terminationReason = .NotApplicable
         } else {
             self.X = NormEst1.initializeX(rows: self.n, columns: self.t, toPrint: toPrint)
             
@@ -76,7 +80,11 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             while (true) {
                 it += 1
                 
-                Y = self.A * self.X
+                Y = self.X
+                for _ in 0..<order {
+                    Y = self.A * Y
+                }
+                
                 nmv += 1
                 
                 let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
@@ -108,14 +116,14 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 
                 if (it >= 2 && est <= est_old) {
                     est = est_old
-                    info = NormEst1TerminationReason.EstimateNotIncreased
+                    info = .EstimateNotIncreased
                     break
                 }
                 est_old = est
                 
                 if (it > itmax) {
                     it = itmax
-                    info = NormEst1TerminationReason.IterationLimitReachedn
+                    info = .IterationLimitReachedn
                     break
                 }
                 
@@ -134,7 +142,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                     let np = maxVector.reduce(0, +)
                     
                     if (np == Double(self.t)) {
-                        info = NormEst1TerminationReason.RepeatedSignMatrix
+                        info = .RepeatedSignMatrix
                         break
                     }
 
@@ -144,7 +152,10 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 }
 
                 //
-                let Z = self.A.adjoint * S
+                var Z = S
+                for _ in 0..<order {
+                    Z = self.A.adjoint * S
+                }
                 nmv += 1
             
                 let absZ = Z.map { $0.length as! Double }
@@ -157,7 +168,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 if (it >= 2) {
                     let maxZvals = Zvals.reduce(Double.greatestFiniteMagnitude, {x, y in max(x,y)})
                     if (maxZvals == Zvals[est_j]) {
-                        info = NormEst1TerminationReason.PowerMethodConvergenceTest
+                        info = .PowerMethodConvergenceTest
                         break
                     }
                 }
@@ -179,7 +190,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                     }
                     
                     if (rep == self.t) {
-                        info = NormEst1TerminationReason.RepeatedUnitVectors
+                        info = .RepeatedUnitVectors
                         break
                     }
                     
@@ -228,10 +239,16 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         }
     }
     
-    static private func computeExactly(_ A: Matrix<Type>) -> (Double, Vector<Type>, Vector<Type>) {
-        let absA = A.map { Double(floatLiteral: $0.length as! Double) }
+    static private func computeExactly(_ A: Matrix<Type>, order: Int = 1) -> (Double, Vector<Type>, Vector<Type>) {
+        var B = A
         
-        let vals = NormEst1.summationAlongRow(absA)
+        for _ in 0..<(order-1) {
+            B = A * B
+        }
+        
+        let absB = B.map { Double(floatLiteral: $0.length as! Double) }
+        
+        let vals = NormEst1.summationAlongRow(absB)
             .enumerated()
             .sorted(by: {$0.element > $1.element})
         
