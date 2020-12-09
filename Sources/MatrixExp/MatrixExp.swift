@@ -133,7 +133,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         if (isSmall) {
             d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
         } else {
-            let normest = NormEst1<Type>(A: Mpowers[3] * Mpowers[3])
+            let normest = NormEst1<Type>(A: Mpowers[3], order: 2)
             d8 = pow(normest.estimate, 1.0/8.0)
         }
         
@@ -151,7 +151,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         if (isSmall) {
             d10 = pow((Mpowers[3] * Mpowers[5]).manhattanNorm as! Double, 1.0/10.0)
         } else {
-            let normest = NormEst1(A: Mpowers[3] * Mpowers[5])
+            let normest = NormEst1<Type>(A: Mpowers[1], order: 5)
             d10 = pow(normest.estimate, 1.0/10.0)
         }
 
@@ -259,7 +259,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             estimatedNorm = Mpower.manhattanNorm
         } else if (isNonNegative(M)) {
             var e = Matrix<Double>(Vector<Double>(repeating: 1.0, count: M.rows))
-            for k in 0..<power {
+            for _ in 0..<power {
                 e = M.transpose * e
             }
             estimatedNorm = e.infNorm
@@ -269,9 +269,8 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             // Use normest1
             // instead of calculating the power of a matrix
             // it repeats the multiplication of a matrix and a vector
-            // Let's come back to this after refactoring MatrixExp and NormEst1
-            // For now, return nil
-            estimatedNorm = nil
+            let normEst = NormEst1<Double>(A: M, order: power)
+            estimatedNorm = normEst.estimate
         }
         
         return estimatedNorm
