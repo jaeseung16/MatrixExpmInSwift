@@ -25,8 +25,9 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
     var W = Vector<Type>()
     var numberOfIterations: Int
     var numberOfProducts: Int
+    var terminationReason: NormEst1TerminationReason
     
-    init(A: Matrix<Type>, t: Int = 2) {
+    init(A: Matrix<Type>, t: Int = 2, toPrint: Bool = false) {
         /*
         guard A.rows == A.columns else {
             print("Cannot initialize. The matrix is not square.")
@@ -44,224 +45,217 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         }
         */
         
-        let toPrint = (t < 0)
-        self.t = abs(t)
+        self.t = t
         
         var rpt_S = 0
         var rpt_e = 0
         
         var Y: Matrix<Type>
         if (self.t == A.rows || A.rows <= 4) {
-            Y = A
-            
-            let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
-            
-            var vals = NormEst1.summationAlongRow(absY)
-            
-            let sortedVals = vals.enumerated().sorted(by: {$0.element > $1.element})
-            
-            vals = sortedVals.map { $0.element }
-            let m = sortedVals.map { $0.offset }
-            
-            self.estimate = vals[0]
-            
-            V = Vector<Type>(repeating: 0.0, count: A.rows)
-            V[m[A.rows-1]] = 1.0
-            W = Y[0..<A.rows, m[A.rows-1]..<(m[A.rows-1]+1)].vector
-            
+            (self.estimate, self.V, self.W) = NormEst1.computeExactly(A)
             numberOfIterations = 0
             numberOfProducts = 1
-            
             self.X = Matrix<Type>()
-            return
-        }
-        
-        var Xtemp = Matrix<Type>(repeating : 1.0, rows: A.rows, columns: self.t)
-        
-        let B1 = 2.0 * NormEst1.randomMatrix(rows: A.rows, columns: self.t - 1)
-        let B2 = Matrix<Type>(repeating: 1.0, rows: A.rows, columns: self.t - 1)
-        Xtemp[0..<n, 1..<self.t] = NormEst1.mysign(A: B1 - B2)
-        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), toPrint: toPrint)
-        self.X = Xtemp.map { $0 / Type(floatLiteral: Double(A.rows) as! Type.FloatLiteralType) }
-        
-        let itmax = 5
-        
-        var it = 0
-        var nmv = 0
-        
-        var ind = [Int](repeating: 0, count: self.t)
-        var ind_hist = [Int](repeating: 0, count: self.t)
-        var S = Matrix<Type>(rows: n, columns: self.t)
-        
-        var est_old = 0.0
-        var est_j = 0
-        var info = 0
-        
-        var est = 0.0
-        while (true) {
-            it += 1
+        } else {
+            self.X = NormEst1.initializeX(rows: self.n, columns: self.t, toPrint: toPrint)
             
-            Y = self.A * self.X
-            nmv += 1
+            let itmax = 5
             
-            let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
+            var it = 0
+            var nmv = 0
             
-            var vals = NormEst1.summationAlongRow(absY)
-           
-            let sortedVals = vals.enumerated().sorted(by: {$0.element > $1.element})
-            vals = sortedVals.map { $0.element }
-            let m = sortedVals.map { $0.offset }
+            var ind = [Int](repeating: 0, count: self.t)
+            var ind_hist = [Int](repeating: 0, count: self.t)
+            var S = Matrix<Type>(rows: n, columns: self.t)
             
-            var vals_ind = [Int]()
-            for k in 0..<self.t {
-                vals_ind.append(ind[m[k]])
-            }
-   
-            est = vals[0]
+            var est_old = 0.0
+            var est_j = 0
+            var info = NormEst1TerminationReason.NotApplicable
             
-            if (est > est_old || it == 2) {
-                est_j = vals_ind[0]
-                W = Y[0..<n, m[0]..<(m[0]+1)].vector
-            }
-            
-            if (toPrint) {
-                print("\(it): ")
+            var est = 0.0
+            while (true) {
+                it += 1
+                
+                Y = self.A * self.X
+                nmv += 1
+                
+                let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
+                
+                let sortedVals = NormEst1.summationAlongRow(absY)
+                    .enumerated()
+                    .sorted(by: {$0.element > $1.element})
+                let vals = sortedVals.map { $0.element }
+                let m = sortedVals.map { $0.offset }
+                
+                var vals_ind = [Int]()
                 for k in 0..<self.t {
-                    print("\(vals_ind[k]), \(vals[k])")
+                    vals_ind.append(ind[m[k]])
                 }
-            }
-            
-            if (it >= 2 && est <= est_old) {
-                est = est_old
-                info = 2
-                break
-            }
-            est_old = est
-            
-            if (it > itmax) {
-                it = itmax
-                info = 1
-                break
-            }
-            
-            let oldS = S
-            S = NormEst1.mysign(A: Y)
-            
-            // For Double
-            if (Type(floatLiteral: 0.0 as! Type.FloatLiteralType) is Double) {
-                let SS = oldS.transpose * S
-                let absSS = SS.map { $0.length as! Double }
-                var maxVector = Vector<Double>()
-                for k in 0..<self.t {
-                    let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
-                    maxVector.append(maxValue == Double(n) ? 1 : 0)
-                }
-                let np = maxVector.reduce(0, +)
+       
+                est = vals[0]
                 
-                if (np == Double(self.t)) {
-                    info = 3
+                if (est > est_old || it == 2) {
+                    est_j = vals_ind[0]
+                    W = Y[0..<n, m[0]..<(m[0]+1)].vector
+                }
+                
+                if (toPrint) {
+                    print("\(it): ")
+                    for k in 0..<self.t {
+                        print("\(vals_ind[k]), \(vals[k])")
+                    }
+                }
+                
+                if (it >= 2 && est <= est_old) {
+                    est = est_old
+                    info = NormEst1TerminationReason.EstimateNotIncreased
                     break
                 }
-
-                let r: Int
-                (S, r) = NormEst1.undupli(S: S, oldS: oldS, toPrint: toPrint)
-                rpt_S = rpt_S + r
-            }
-
-            //
-            let Z = self.A.adjoint * S
-            nmv += 1
-        
-            let absZ = Z.map { $0.length as! Double }
-            var Zvals = Vector<Double>()
-            for k in 0..<self.n {
-                let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
-                Zvals.append(maxValue)
-            }
-            
-            if (it >= 2) {
-                let maxZvals = Zvals.reduce(Double.greatestFiniteMagnitude, {x, y in max(x,y)})
-                if (maxZvals == Zvals[est_j]) {
-                    info = 4
-                    break
-                }
-            }
-            
-            let sortedZVals = Zvals.enumerated().sorted(by: {$0.element > $1.element})
-            let m2 = sortedZVals.map { $0.offset }
-            var imax = self.t
-            if (it == 1) {
-                ind = [Int](m2[0..<self.t])
-                ind_hist = ind
-            } else {
-                let ismember = m2.map { ind_hist.contains($0) ? 1 : 0 }
-                let rep = ismember.reduce(0, +)
+                est_old = est
                 
-                rpt_e += rep
-                
-                if (rep > 0 && toPrint) {
-                    print("rep e_j = \(rep)")
-                }
-                
-                if (rep == self.t) {
-                    info = 5
+                if (it > itmax) {
+                    it = itmax
+                    info = NormEst1TerminationReason.IterationLimitReachedn
                     break
                 }
                 
-                var j = 1
-                for i in 1...self.t {
-                    if (j > n) {
-                        imax = i - 1
+                let oldS = S
+                S = NormEst1.mysign(A: Y)
+                
+                // For Double
+                if (Type(floatLiteral: 0.0 as! Type.FloatLiteralType) is Double) {
+                    let SS = oldS.transpose * S
+                    let absSS = SS.map { $0.length as! Double }
+                    var maxVector = Vector<Double>()
+                    for k in 0..<self.t {
+                        let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
+                        maxVector.append(maxValue == Double(n) ? 1 : 0)
+                    }
+                    let np = maxVector.reduce(0, +)
+                    
+                    if (np == Double(self.t)) {
+                        info = NormEst1TerminationReason.RepeatedSignMatrix
                         break
                     }
-                    while (ind_hist.contains(m2[j-1])) {
-                        j += 1
+
+                    let r: Int
+                    (S, r) = NormEst1.undupli(S: S, oldS: oldS, toPrint: toPrint)
+                    rpt_S = rpt_S + r
+                }
+
+                //
+                let Z = self.A.adjoint * S
+                nmv += 1
+            
+                let absZ = Z.map { $0.length as! Double }
+                var Zvals = Vector<Double>()
+                for k in 0..<self.n {
+                    let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
+                    Zvals.append(maxValue)
+                }
+                
+                if (it >= 2) {
+                    let maxZvals = Zvals.reduce(Double.greatestFiniteMagnitude, {x, y in max(x,y)})
+                    if (maxZvals == Zvals[est_j]) {
+                        info = NormEst1TerminationReason.PowerMethodConvergenceTest
+                        break
+                    }
+                }
+                
+                let sortedZVals = Zvals.enumerated().sorted(by: {$0.element > $1.element})
+                let m2 = sortedZVals.map { $0.offset }
+                var imax = self.t
+                if (it == 1) {
+                    ind = [Int](m2[0..<self.t])
+                    ind_hist = ind
+                } else {
+                    let ismember = m2.map { ind_hist.contains($0) ? 1 : 0 }
+                    let rep = ismember.reduce(0, +)
+                    
+                    rpt_e += rep
+                    
+                    if (rep > 0 && toPrint) {
+                        print("rep e_j = \(rep)")
+                    }
+                    
+                    if (rep == self.t) {
+                        info = NormEst1TerminationReason.RepeatedUnitVectors
+                        break
+                    }
+                    
+                    var j = 1
+                    for i in 1...self.t {
                         if (j > n) {
                             imax = i - 1
                             break
                         }
+                        while (ind_hist.contains(m2[j-1])) {
+                            j += 1
+                            if (j > n) {
+                                imax = i - 1
+                                break
+                            }
+                        }
+                        if (j > n) {
+                            break
+                        }
+                        ind[i-1] = m2[j-1]
+                        j += 1
                     }
-                    if (j > n) {
-                        break
-                    }
-                    ind[i-1] = m2[j-1]
-                    j += 1
+                    ind_hist.append(contentsOf: ind[0..<imax])
                 }
-                ind_hist.append(contentsOf: ind[0..<imax])
+                
+                self.X = Matrix<Type>(repeating: 0.0, rows: n, columns: self.t)
+                for j in 0..<imax {
+                    self.X[ind[j], j] = 1
+                }
             }
             
-            self.X = Matrix<Type>(repeating: 0.0, rows: n, columns: self.t)
-            for j in 0..<imax {
-                self.X[ind[j], j] = 1
+            if (toPrint) {
+                print("Termination Reason: \(info)")
             }
+            
+            self.terminationReason = info
+            self.estimate = est
+            numberOfIterations = it
+            numberOfProducts = nmv
+            
+            V = Vector<Type>(repeating: 0.0, count: n)
+            V[est_j] = 1
+            
+            print("ParallelCol \(rpt_S)")
+            print("RepeatedUnitVectors \(rpt_e)")
         }
+    }
+    
+    static private func computeExactly(_ A: Matrix<Type>) -> (Double, Vector<Type>, Vector<Type>) {
+        let absA = A.map { Double(floatLiteral: $0.length as! Double) }
         
-        if (true) {
-            switch (info) {
-            case 1:
-                print("TerminateIterationLimitReachedn")
-            case 2:
-                print("TerminateEstimateNotIncreased")
-            case 3:
-                print("TerminateRepeatedSignMatrix")
-            case 4:
-                print("TerminatePowerMethodConvergenceTest")
-            case 5:
-                print("TerminateRepeatedUnitVectors")
-            default:
-                print("")
-            }
-        }
+        let vals = NormEst1.summationAlongRow(absA)
+            .enumerated()
+            .sorted(by: {$0.element > $1.element})
         
-        self.estimate = est
-        numberOfIterations = it
-        numberOfProducts = nmv
+        let elements = vals.map { $0.element }
+        let offests = vals.map { $0.offset }
         
-        V = Vector<Type>(repeating: 0.0, count: n)
-        V[est_j] = 1
+        var V = Vector<Type>(repeating: 0.0, count: A.rows)
+        V[offests[A.rows-1]] = 1.0
         
-        print("ParallelCol \(rpt_S)")
-        print("RepeatedUnitVectors \(rpt_e)")
+        let W = A[0..<A.rows, offests[A.rows-1]..<(offests[A.rows-1]+1)].vector
+        
+        return (elements[0], V, W)
+    }
+    
+    static private func initializeX(rows: Int, columns: Int, toPrint: Bool) -> Matrix<Type> {
+        var Xtemp = Matrix<Type>(repeating : 1.0, rows: rows, columns: columns)
+        
+        let B1 = 2.0 * NormEst1.randomMatrix(rows: rows, columns: columns - 1)
+        let B2 = Matrix<Type>(repeating: 1.0, rows: rows, columns: columns - 1)
+        Xtemp[0..<rows, 1..<columns] = NormEst1.mysign(A: B1 - B2)
+        
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), toPrint: toPrint)
+        
+        return Xtemp.map { $0 / Type(floatLiteral: Double(rows) as! Type.FloatLiteralType) }
     }
     
     static func mysign(A: Matrix<Type>) -> Matrix<Type> {
@@ -269,6 +263,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return S
     }
     
+    // Look for and replace columns of S parallel to other columns of S or to columns of oldS
     static func undupli(S: Matrix<Type>, oldS: Matrix<Type>, toPrint: Bool) -> (Matrix<Type>, Int) {
         if (S.columns == 1) {
             return (S, 0)
@@ -282,7 +277,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         var startColumn: Int
         var lastColumn: Int
         var W = Matrix<Type>(rows: nRows, columns: 2 * nColumns - 1)
-        if (oldS.count == 0) {
+        if oldS.count == 0 {
             W[0..<nRows, 0..<1] = S[0..<nRows, 0..<1]
             startColumn = 1
             lastColumn = 0

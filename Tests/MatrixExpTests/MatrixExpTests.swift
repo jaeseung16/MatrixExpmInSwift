@@ -136,7 +136,7 @@ final class MatrixExpTests: XCTestCase {
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
         
-        let normEst = NormEst1<Double>(A: M, t: t)
+        let normEst = NormEst1<Double>(A: M, t: t, toPrint: true)
         let result = normEst.estimate // 99.99505016169591
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
@@ -157,7 +157,7 @@ final class MatrixExpTests: XCTestCase {
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
         
-        let normEst = NormEst1<Complex<Double>>(A: M, t: t)
+        let normEst = NormEst1<Complex<Double>>(A: M, t: t, toPrint: true)
         let result = normEst.estimate // 99.99505016169591
         print("result = \(result)")
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
@@ -171,7 +171,7 @@ final class MatrixExpTests: XCTestCase {
         
         let expected = 1.414213562373095
         
-        let normEst = NormEst1<Complex<Double>>(A: M)
+        let normEst = NormEst1<Complex<Double>>(A: M, toPrint: true)
         let result = normEst.estimate // 1.4142135623730951
         print("result = \(result)")
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
@@ -189,7 +189,7 @@ final class MatrixExpTests: XCTestCase {
         
         let expected = 1.414213562373095
         
-        let normEst = NormEst1<Complex<Double>>(A: M)
+        let normEst = NormEst1<Complex<Double>>(A: M, toPrint: true)
         let result = normEst.estimate // 1.4142135623730951
         print("result = \(result)")
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
@@ -218,7 +218,7 @@ final class MatrixExpTests: XCTestCase {
                                             [1.0, -1.0, -1.0, -1.0]])
         
         var r: Int
-        (_, r) = NormEst1<Double>.undupli(S: S, oldS: oldS, toPrint: false)
+        (_, r) = NormEst1<Double>.undupli(S: S, oldS: oldS, toPrint: true)
         
         XCTAssertEqual(1, r)
     }
