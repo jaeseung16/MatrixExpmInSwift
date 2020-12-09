@@ -1,6 +1,5 @@
 import Foundation
 import Numerics
-import RealModule
 import LANumerics
 
 class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
@@ -120,11 +119,11 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         let d6 = pow(Mpowers[5].manhattanNorm as! Double, 1.0/6.0)
         let eta1 = max(d4, d6)
         
-        if (eta1 <= MatrixExpConst<Double>.theta(for: 3)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[0], order: 3)! == 0.0) {
+        if (eta1 <= MatrixExpConst<Double>.theta(for: 3)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
             order = 3
             return (s, order, Mpowers)
         }
-        if (eta1 <= MatrixExpConst<Double>.theta(for: 5)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[1], order: 5)! == 0.0) {
+        if (eta1 <= MatrixExpConst<Double>.theta(for: 5)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[1], order: 5) == 0.0) {
             order = 5
             return (s, order, Mpowers)
         }
@@ -138,11 +137,11 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         }
         
         let eta3 = max(d6, d8)
-        if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7)! == 0.0) {
+        if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
             order = 7
             return (s, order, Mpowers)
         }
-        if (eta3 <= MatrixExpConst<Double>.theta(for: 9)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[3], order: 9)! == 0.0) {
+        if (eta3 <= MatrixExpConst<Double>.theta(for: 9)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[3], order: 9) == 0.0) {
             order = 9
             return (s, order, Mpowers)
         }
@@ -161,7 +160,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         
         let factor = Type(floatLiteral: pow(2.0, Double(s)) as! Type.FloatLiteralType)
         let scaledM = M.map { $0 / factor }
-        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)!
+        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
         
         if (sFromEll.isNaN) {
             let norm1 = M.manhattanNorm as! Double
@@ -233,51 +232,12 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return F
     }
     
-    static func ell(_ matrix: Matrix<Type>, coeff: Double, order: Int) -> Double? {
-        guard let realValueOfCoeff = coeff.length as? Double else {
-            print("coeff should be real: coeff = \(coeff)")
-            return nil
-        }
-        
-        let factor = pow(realValueOfCoeff, 1.0 / Double(2 * order + 1))
+    static func ell(_ matrix: Matrix<Type>, coeff: Double, order: Int) -> Double {
+        let factor = pow(coeff, 1.0 / Double(2 * order + 1))
         let scaledMatrix = matrix.map { ($0.length as! Double) * factor}
-        let alpha = norm(of: scaledMatrix, power: (2 * order + 1))! / (matrix.manhattanNorm as! Double)
-        
+        let alpha = NormOfMatrixPower(scaledMatrix, power: (2 * order + 1)).estimatedNorm / (matrix.manhattanNorm as! Double)
         let u = pow(2.0, -52.0)
-
         return max(ceil(log2(2.0 * alpha / u) / Double(2 * order)), 0.0)
-    }
-    
-    static func norm(of M: Matrix<Double>, power: Int) -> Double? {
-        var estimatedNorm: Double?
-        var Mpower = Matrix<Double>.eye(M.rows)
-        
-        if (M.rows < 50 || !isNonNegative(M)) {
-            for _ in 0..<power {
-                Mpower = M * Mpower
-            }
-            estimatedNorm = Mpower.manhattanNorm
-        } else if (isNonNegative(M)) {
-            var e = Matrix<Double>(Vector<Double>(repeating: 1.0, count: M.rows))
-            for _ in 0..<power {
-                e = M.transpose * e
-            }
-            estimatedNorm = e.infNorm
-        } else {
-            // MATLAB normAM has an implementation for this case
-            // expmParams
-            // Use normest1
-            // instead of calculating the power of a matrix
-            // it repeats the multiplication of a matrix and a vector
-            let normEst = NormEst1<Double>(A: M, order: power)
-            estimatedNorm = normEst.estimate
-        }
-        
-        return estimatedNorm
-    }
-    
-    static func isNonNegative(_ M: Matrix<Double>) -> Bool {
-        return M.forall {$0 >= 0}
     }
     
     static func recomputeBlockDiag(_ matrix: Matrix<Type>, exponentiated: inout Matrix<Type>, structure: [Int]) {
