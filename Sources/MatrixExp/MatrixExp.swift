@@ -73,18 +73,16 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         print("blockFormat = \(String(describing: blockFormat))")
         
         let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
-        print("order = \(order)")
-        print("scaling = \(scaling)")
         print("Mpowers = \(Mpowers)")
         
-        let factor = scaling > 0 ? Type(floatLiteral: pow(2.0, Double(scaling)) as! Type.FloatLiteralType) : 1.0
+        let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : 1.0
         var scaledM = copiedMatrix.map { $0 / factor }
         
         var scaledMpowers = Mpowers
         
         if (scaling > 0) {
             for k in 0..<Mpowers.count {
-                let factor = Type(floatLiteral: pow(2.0, Double((k+1) * scaling)) as! Type.FloatLiteralType)
+                let factor = convertToType(floatLiteral: pow(2.0, Double((k+1) * scaling)))
                 print("k = \(k), factor = \(factor)")
                 scaledMpowers[k] = Mpowers[k].map { $0 / factor }
             }
@@ -94,7 +92,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         print("scaledMpowers = \(scaledMpowers)")
         
         result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
-        print("result = \(result)")
+        
         if (recomputeDiags) {
             print("scaledM = \(scaledM)")
             recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
@@ -119,10 +117,10 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     
     static func sinch(_ x: Type) -> Type {
         var value: Type
-        if (x == 0.0) {
-            value = Type(floatLiteral: 1.0 as! Type.FloatLiteralType)
+        if x == convertToType(floatLiteral: 0.0) {
+            value = convertToType(floatLiteral: 1.0)
         } else {
-            value = (x.exponentiation() - (-x).exponentiation()) / x / Type(floatLiteral: 2.0 as! Type.FloatLiteralType)
+            value = (x.exponentiation() - (-x).exponentiation()) / x / convertToType(floatLiteral: 2.0)
         }
         return value
     }
@@ -181,7 +179,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         let eta5 = min(eta3, eta4)
         s = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: 13)! ) ), 0))
         
-        let factor = Type(floatLiteral: pow(2.0, Double(s)) as! Type.FloatLiteralType)
+        let factor = convertToType(floatLiteral: pow(2.0, Double(s)))
         let scaledM = M.map { $0 / factor }
         let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
         
@@ -265,7 +263,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     
     static func recomputeBlockDiag(_ matrix: Matrix<Type>, exponentiated: inout Matrix<Type>, structure: [Int]) {
         let n = matrix.rows - 1
-        let two = Type(floatLiteral: 2.0 as! Type.FloatLiteralType)
+        let two = convertToType(floatLiteral: 2.0)
         
         for k in 0..<n {
             switch structure[k] {
@@ -315,7 +313,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     }
     
     static func quasiTrianglularStructure(_ matrix: Matrix<Type>) -> [Int] {
-        let zero = Type(floatLiteral: 0.0 as! Type.FloatLiteralType)
+        let zero = convertToType(floatLiteral: 0.0)
         var structure = [Int]()
         
         print("matrix.rows = \(matrix.rows)")
@@ -357,6 +355,10 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         }
         
         return structure
+    }
+    
+    static func convertToType(floatLiteral: Double) -> Type {
+        return Type(floatLiteral: floatLiteral as! Type.FloatLiteralType)
     }
 }
 
