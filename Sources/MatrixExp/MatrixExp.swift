@@ -3,46 +3,82 @@ import Numerics
 import LANumerics
 
 class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
+    let matrix: Matrix<Type>
+    let result: Matrix<Type>?
+    let scaling = 0
+    let order = 0
+    var calculationType = MatrixExpCalculationType.pade
+    
+    init(_ matrix: Matrix<Type>) {
+        self.matrix = matrix
+        
+        
+        if matrix.isDiag {
+            self.result = MatrixExp<Type>.exp(diagMatrix: matrix)
+            calculationType = .diag
+        } else if matrix.isHermitian {
+            self.result = MatrixExp<Type>.exp(hermitian: matrix)
+            calculationType = .hermitian
+        } else {
+            self.result = MatrixExp<Type>.evaluate(for: matrix)
+        }
+    }
+    
+    static func exp(diagMatrix: Matrix<Type>) -> Matrix<Type> {
+        var result = Matrix<Type>.zeros(diagMatrix.rows, diagMatrix.columns)
+        for k in 0..<diagMatrix.columns {
+            result[k, k] = diagMatrix[k, k].exponentiation()
+        }
+        return result
+    }
+    
+    static func exp(hermitian: Matrix<Type>) -> Matrix<Type> {
+        var copiedMatrix = hermitian
+        var schurVectors = Matrix<Type>.eye(hermitian.rows)
+        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: hermitian.rows)
+        (eigenValues, copiedMatrix, schurVectors) = hermitian.schur()!
+        
+        var expSchurForm = Matrix<Type>.eye(hermitian.rows)
+        for k in 0..<copiedMatrix.columns {
+            expSchurForm[k, k] = copiedMatrix[k, k].exponentiation()
+        }
+        
+        let result = schurVectors * expSchurForm * schurVectors.adjoint
+        
+        print("eigenValues = \(eigenValues)")
+        print("schurForm = \(copiedMatrix)")
+        print("schurVectors = \(schurVectors)")
+        print("result = \(result)")
+        
+        return result
+    }
+    
     static func evaluate(for matrix: Matrix<Type>) -> Matrix<Type>? {
         guard matrix.isSquare else {
             NSLog("Need a square matrix as an input: \(matrix)")
             return nil
         }
         
-        var copiedMatrix = matrix
+        let copiedMatrix = matrix
         print("input = \(matrix)")
         var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
-        print("\(result)")
         
         print("isSchur = \(matrix.isSchur)")
         print("isHermitian = \(matrix.isHermitian)")
         
         var schurFact = false
         var recomputeDiags = false
-        var schurVectors = Matrix<Type>.eye(matrix.rows)
-        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: matrix.rows)
         if matrix.isSchur {
             recomputeDiags = true
         } else if matrix.isHermitian {
-            (eigenValues, copiedMatrix, schurVectors) = matrix.schur()!
-            print("eigenValues = \(eigenValues)")
-            print("schurForm = \(copiedMatrix)")
-            print("schurVectors = \(schurVectors)")
             recomputeDiags = true
             schurFact = true
         }
         
         if (matrix.isDiag) {
-            print("diag")
-            for k in 0..<matrix.columns {
-                result[k, k] = matrix[k, k].exponentiation()
-            }
+            result = exp(diagMatrix: matrix)
         } else if (schurFact) {
-            var expSchurForm = Matrix<Type>.eye(matrix.rows)
-            for k in 0..<copiedMatrix.columns {
-                expSchurForm[k, k] = copiedMatrix[k, k].exponentiation()
-            }
-            result = schurVectors * expSchurForm * schurVectors.adjoint
+            result = exp(hermitian: matrix)
         } else {
             let blockFormat = recomputeDiags ? quasiTrianglularStructure(copiedMatrix) : nil
             print("blockFormat = \(blockFormat)")
