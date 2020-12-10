@@ -6,7 +6,7 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     let matrix: Matrix<Type>
     let result: Matrix<Type>?
     let scaling: Int
-    let order: Int
+    let orderPadeApproximant: Int
     let calculationType: MatrixExpCalculationType
     
     init(_ matrix: Matrix<Type>) {
@@ -17,20 +17,20 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 self.result = MatrixExp<Type>.exp(diagMatrix: matrix)
                 calculationType = .diag
                 self.scaling = 0
-                self.order = 0
+                self.orderPadeApproximant = 0
             } else if matrix.isHermitian {
                 self.result = MatrixExp<Type>.exp(hermitianMatrix: matrix)
                 calculationType = .hermitian
                 self.scaling = 0
-                self.order = 0
+                self.orderPadeApproximant = 0
             } else {
-                (self.result, self.scaling, self.order) = MatrixExp<Type>.exp(matrix: matrix)
+                (self.result, self.scaling, self.orderPadeApproximant) = MatrixExp<Type>.exp(matrix: matrix)
                 calculationType = .pade
             }
         } else {
             self.result = nil
             self.scaling = 0
-            self.order = 0
+            self.orderPadeApproximant = 0
             calculationType = .notApplicable
         }
     }
@@ -127,20 +127,20 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         Mpowers[3] = Mpowers[1] * Mpowers[1]
         Mpowers[5] = Mpowers[1] * Mpowers[3]
         
-        var s = 0
-        var order = 0
+        var scaling = 0
+        var orderPadeApproximant = 0
         
         let d4 = pow(Mpowers[3].manhattanNorm as! Double, 1.0/4.0)
         let d6 = pow(Mpowers[5].manhattanNorm as! Double, 1.0/6.0)
         let eta1 = max(d4, d6)
         
         if (eta1 <= MatrixExpConst<Double>.theta(for: 3)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
-            order = 3
-            return (s, order, Mpowers)
+            orderPadeApproximant = 3
+            return (scaling, orderPadeApproximant, Mpowers)
         }
         if (eta1 <= MatrixExpConst<Double>.theta(for: 5)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[1], order: 5) == 0.0) {
-            order = 5
-            return (s, order, Mpowers)
+            orderPadeApproximant = 5
+            return (scaling, orderPadeApproximant, Mpowers)
         }
         
         var d8: Double
@@ -153,12 +153,12 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         
         let eta3 = max(d6, d8)
         if (eta3 <= MatrixExpConst<Double>.theta(for: 7)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
-            order = 7
-            return (s, order, Mpowers)
+            orderPadeApproximant = 7
+            return (scaling, orderPadeApproximant, Mpowers)
         }
         if (eta3 <= MatrixExpConst<Double>.theta(for: 9)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[3], order: 9) == 0.0) {
-            order = 9
-            return (s, order, Mpowers)
+            orderPadeApproximant = 9
+            return (scaling, orderPadeApproximant, Mpowers)
         }
         
         var d10: Double
@@ -171,9 +171,9 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
 
         let eta4 = max(d8, d10)
         let eta5 = min(eta3, eta4)
-        s = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: 13)! ) ), 0))
+        scaling = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: 13)! ) ), 0))
         
-        let factor = convertToType(floatLiteral: pow(2.0, Double(s)))
+        let factor = convertToType(floatLiteral: pow(2.0, Double(scaling)))
         let scaledM = M.map { $0 / factor }
         let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
         
@@ -184,13 +184,13 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             let needAName = norm1/theta
             
             let t = log2(needAName.significand)
-            s = needAName.exponent - (t == 0.5 ? 1 : 0)
+            scaling = needAName.exponent - (t == 0.5 ? 1 : 0)
         } else {
-            s = s + Int(sFromEll)
+            scaling = scaling + Int(sFromEll)
         }
-        order = 13
+        orderPadeApproximant = 13
 
-        return (s, order, Mpowers)
+        return (scaling, orderPadeApproximant, Mpowers)
     }
     
     static func padeApprox(for M: Matrix<Type>, Mpowers: [Matrix<Type>], order: Int) -> Matrix<Type>? {
@@ -202,8 +202,6 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         var U = Matrix<Type>.eye(M.rows)
         var V = Matrix<Type>.eye(M.rows)
         
-        print("F = \(F)")
-        
         if (order == 13) {
             let U1 = coeffs[13] * Mpowers[5] + coeffs[11] * Mpowers[3] + coeffs[9] * Mpowers[1]
             let U2 = coeffs[7] * Mpowers[5] + coeffs[5] * Mpowers[3] + coeffs[3] * Mpowers[1]
@@ -212,7 +210,6 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             let V1 = coeffs[12] * Mpowers[5] + coeffs[10] * Mpowers[3] + coeffs[8] * Mpowers[1]
             let V2 = coeffs[6] * Mpowers[5] + coeffs[4] * Mpowers[3] + coeffs[2] * Mpowers[1]
             V = Mpowers[5] * V1 + V2 + coeffs[0] * I
-            
         } else if (order == 3 || order == 5 || order == 7 || order == 9) {
             if (order == 9 && Mpowers.count == 6) {
                 Mpowers2.append(Matrix<Type>.eye(M.rows))
@@ -228,7 +225,6 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             }
             
             U = M * U
-            
         } else {
             return nil
         }
