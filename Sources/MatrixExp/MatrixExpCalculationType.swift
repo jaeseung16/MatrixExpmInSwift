@@ -11,4 +11,5 @@ enum MatrixExpCalculationType {
     case diag
     case hermitian
     case pade
+    case notApplicable
 }

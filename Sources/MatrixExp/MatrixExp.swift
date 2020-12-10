@@ -5,22 +5,33 @@ import LANumerics
 class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     let matrix: Matrix<Type>
     let result: Matrix<Type>?
-    let scaling = 0
-    let order = 0
-    var calculationType = MatrixExpCalculationType.pade
+    let scaling: Int
+    let order: Int
+    let calculationType: MatrixExpCalculationType
     
     init(_ matrix: Matrix<Type>) {
         self.matrix = matrix
         
-        
-        if matrix.isDiag {
-            self.result = MatrixExp<Type>.exp(diagMatrix: matrix)
-            calculationType = .diag
-        } else if matrix.isHermitian {
-            self.result = MatrixExp<Type>.exp(hermitian: matrix)
-            calculationType = .hermitian
+        if matrix.isSquare {
+            if matrix.isDiag {
+                self.result = MatrixExp<Type>.exp(diagMatrix: matrix)
+                calculationType = .diag
+                self.scaling = 0
+                self.order = 0
+            } else if matrix.isHermitian {
+                self.result = MatrixExp<Type>.exp(hermitianMatrix: matrix)
+                calculationType = .hermitian
+                self.scaling = 0
+                self.order = 0
+            } else {
+                (self.result, self.scaling, self.order) = MatrixExp<Type>.exp(matrix: matrix)
+                calculationType = .pade
+            }
         } else {
-            self.result = MatrixExp<Type>.evaluate(for: matrix)
+            self.result = nil
+            self.scaling = 0
+            self.order = 0
+            calculationType = .notApplicable
         }
     }
     
@@ -32,13 +43,13 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return result
     }
     
-    static func exp(hermitian: Matrix<Type>) -> Matrix<Type> {
-        var copiedMatrix = hermitian
-        var schurVectors = Matrix<Type>.eye(hermitian.rows)
-        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: hermitian.rows)
-        (eigenValues, copiedMatrix, schurVectors) = hermitian.schur()!
+    static func exp(hermitianMatrix: Matrix<Type>) -> Matrix<Type> {
+        var copiedMatrix = hermitianMatrix
+        var schurVectors = Matrix<Type>.eye(hermitianMatrix.rows)
+        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: hermitianMatrix.rows)
+        (eigenValues, copiedMatrix, schurVectors) = hermitianMatrix.schur()!
         
-        var expSchurForm = Matrix<Type>.eye(hermitian.rows)
+        var expSchurForm = Matrix<Type>.eye(hermitianMatrix.rows)
         for k in 0..<copiedMatrix.columns {
             expSchurForm[k, k] = copiedMatrix[k, k].exponentiation()
         }
@@ -53,81 +64,57 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return result
     }
     
-    static func evaluate(for matrix: Matrix<Type>) -> Matrix<Type>? {
-        guard matrix.isSquare else {
-            NSLog("Need a square matrix as an input: \(matrix)")
-            return nil
-        }
-        
+    static func exp(matrix: Matrix<Type>) -> (Matrix<Type>, Int, Int) {
+        let recomputeDiags = matrix.isSchur
         let copiedMatrix = matrix
-        print("input = \(matrix)")
         var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
         
-        print("isSchur = \(matrix.isSchur)")
-        print("isHermitian = \(matrix.isHermitian)")
+        let blockFormat = recomputeDiags ? quasiTrianglularStructure(copiedMatrix) : nil
+        print("blockFormat = \(String(describing: blockFormat))")
         
-        var schurFact = false
-        var recomputeDiags = false
-        if matrix.isSchur {
-            recomputeDiags = true
-        } else if matrix.isHermitian {
-            recomputeDiags = true
-            schurFact = true
+        let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
+        print("order = \(order)")
+        print("scaling = \(scaling)")
+        print("Mpowers = \(Mpowers)")
+        
+        let factor = scaling > 0 ? Type(floatLiteral: pow(2.0, Double(scaling)) as! Type.FloatLiteralType) : 1.0
+        var scaledM = copiedMatrix.map { $0 / factor }
+        
+        var scaledMpowers = Mpowers
+        
+        if (scaling > 0) {
+            for k in 0..<Mpowers.count {
+                let factor = Type(floatLiteral: pow(2.0, Double((k+1) * scaling)) as! Type.FloatLiteralType)
+                print("k = \(k), factor = \(factor)")
+                scaledMpowers[k] = Mpowers[k].map { $0 / factor }
+            }
         }
         
-        if (matrix.isDiag) {
-            result = exp(diagMatrix: matrix)
-        } else if (schurFact) {
-            result = exp(hermitian: matrix)
-        } else {
-            let blockFormat = recomputeDiags ? quasiTrianglularStructure(copiedMatrix) : nil
-            print("blockFormat = \(blockFormat)")
-            
-            let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
-            print("order = \(order)")
-            print("scaling = \(scaling)")
-            print("Mpowers = \(Mpowers)")
-            
-            let factor = scaling > 0 ? Type(floatLiteral: pow(2.0, Double(scaling)) as! Type.FloatLiteralType) : 1.0
-            var scaledM = copiedMatrix.map { $0 / factor }
-            
-            var scaledMpowers = Mpowers
-            
-            if (scaling > 0) {
-                for k in 0..<Mpowers.count {
-                    let factor = Type(floatLiteral: pow(2.0, Double((k+1) * scaling)) as! Type.FloatLiteralType)
-                    print("k = \(k), factor = \(factor)")
-                    scaledMpowers[k] = Mpowers[k].map { $0 / factor }
-                }
-            }
-            
+        print("scaledM = \(scaledM)")
+        print("scaledMpowers = \(scaledMpowers)")
+        
+        result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
+        print("result = \(result)")
+        if (recomputeDiags) {
             print("scaledM = \(scaledM)")
-            print("scaledMpowers = \(scaledMpowers)")
-            
-            result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
-            print("result = \(result)")
-            if (recomputeDiags) {
-                print("scaledM = \(scaledM)")
-                recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
-                print("recomputed result = \(result)")
-            }
-            
-            if (scaling > 0) {
-                for _ in 0..<scaling {
-                    result = result * result
-                    print("result = \(result)")
-                    if (recomputeDiags) {
-                        scaledM = 2.0 * scaledM
-                        recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
-                        print("scaledM = \(scaledM)")
-                        print("recomputed result = \(result)")
-                    }
+            recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+            print("recomputed result = \(result)")
+        }
+        
+        if (scaling > 0) {
+            for _ in 0..<scaling {
+                result = result * result
+                print("result = \(result)")
+                if (recomputeDiags) {
+                    scaledM = 2.0 * scaledM
+                    recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+                    print("scaledM = \(scaledM)")
+                    print("recomputed result = \(result)")
                 }
             }
         }
         
-        print("output = \(result)")
-        return result
+        return (result, scaling, order)
     }
     
     static func sinch(_ x: Type) -> Type {
