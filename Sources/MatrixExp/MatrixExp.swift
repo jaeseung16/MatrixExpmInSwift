@@ -44,24 +44,18 @@ class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     }
     
     static func exp(hermitianMatrix: Matrix<Type>) -> Matrix<Type> {
-        var copiedMatrix = hermitianMatrix
-        var schurVectors = Matrix<Type>.eye(hermitianMatrix.rows)
-        var eigenValues = Vector<Complex<Type.Magnitude>>(repeating: Complex<Type.Magnitude>(0.0), count: hermitianMatrix.rows)
-        (eigenValues, copiedMatrix, schurVectors) = hermitianMatrix.schur()!
+        let (eigenValues, schurForm, schurVectors) = hermitianMatrix.schur()!
         
         var expSchurForm = Matrix<Type>.eye(hermitianMatrix.rows)
-        for k in 0..<copiedMatrix.columns {
-            expSchurForm[k, k] = copiedMatrix[k, k].exponentiation()
+        for k in 0..<schurForm.columns {
+            expSchurForm[k, k] = schurForm[k, k].exponentiation()
         }
         
-        let result = schurVectors * expSchurForm * schurVectors.adjoint
-        
         print("eigenValues = \(eigenValues)")
-        print("schurForm = \(copiedMatrix)")
+        print("schurForm = \(schurForm)")
         print("schurVectors = \(schurVectors)")
-        print("result = \(result)")
         
-        return result
+        return schurVectors * expSchurForm * schurVectors.adjoint
     }
     
     static func exp(matrix: Matrix<Type>) -> (Matrix<Type>, Int, Int) {
