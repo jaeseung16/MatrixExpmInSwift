@@ -26,15 +26,18 @@ The result can be `Matrix<Element>` or `nil`.
 
 ```swift
 let M1 = Matrix<Double>(rows: [[0, 1], [1, 0]])
-let result = MatrixExp<Double>.evaluate(for: M1)
+let result = MatrixExp<Double>(M1).result
 
 let M2 = Matrix<Complex<Double>>(rows: [[Complex<Double>(0,0), Complex<Double>(0, -1)], [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
-let result = MatrixExp<Complex>.evaluate(for: M2)
+let result = MatrixExp<Complex>(M2).result
 ```
 
-### TODO
+### Update History
+
+#### Version 0.2.0 (12/10/2020)
 
 Implement a function corresponding to `normest1` in Matlab or [onenormest](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.onenormest.html) in Scipy to estimate the 1-norm of the powers of a given matrix [1]
 
 
 [1] Nicholas J. Higham and Fran\c{c}oise Tisseur, A Block Algorithm for Matrix 1-Norm Estimation with an Application to 1-Norm Pseudospectra, SIAM J. Matrix Anal. App. 21, 1185-1201, 2000. [doi: 10.1137/S0895479899356080](https://doi.org/10.1137/S0895479899356080)
+
