@@ -1,5 +1,5 @@
 # MatrixExp
-![](https://img.shields.io/badge/version-0.1.0-blue)
+![](https://img.shields.io/badge/version-0.2.0-blue)
 ![](https://img.shields.io/badge/license-MIT-green)
 ![](https://img.shields.io/badge/last%20updated-October%202020-orange)
 
