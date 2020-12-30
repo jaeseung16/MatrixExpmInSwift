@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum MatrixExpCalculationType {
+public enum MatrixExpCalculationType {
     case diag
     case hermitian
     case pade

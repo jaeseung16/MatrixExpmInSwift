@@ -3,13 +3,13 @@ import Numerics
 import LANumerics
 
 public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
-    let matrix: Matrix<Type>
-    let result: Matrix<Type>?
-    let scaling: Int
-    let orderPadeApproximant: Int
-    let calculationType: MatrixExpCalculationType
+    public let matrix: Matrix<Type>
+    public let result: Matrix<Type>?
+    public let scaling: Int
+    public let orderPadeApproximant: Int
+    public let calculationType: MatrixExpCalculationType
     
-    init(_ matrix: Matrix<Type>) {
+    public init(_ matrix: Matrix<Type>) {
         self.matrix = matrix
         
         if matrix.isSquare {
