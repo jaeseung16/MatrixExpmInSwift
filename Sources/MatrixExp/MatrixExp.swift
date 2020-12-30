@@ -2,7 +2,7 @@ import Foundation
 import Numerics
 import LANumerics
 
-class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
+public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     let matrix: Matrix<Type>
     let result: Matrix<Type>?
     let scaling: Int
