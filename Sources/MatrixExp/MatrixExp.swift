@@ -51,10 +51,6 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             expSchurForm[k, k] = schurForm[k, k].exponentiation()
         }
         
-        print("eigenValues = \(eigenValues)")
-        print("schurForm = \(schurForm)")
-        print("schurVectors = \(schurVectors)")
-        
         return schurVectors * expSchurForm * schurVectors.adjoint
     }
     
@@ -64,16 +60,13 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         var result = Matrix<Type>.zeros(matrix.rows, matrix.columns)
         
         let blockFormat = recomputeDiags ? quasiTrianglularStructure(copiedMatrix) : nil
-        print("blockFormat = \(String(describing: blockFormat))")
         
         let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
-        print("Mpowers = \(Mpowers)")
         
         let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : 1.0
         var scaledM = copiedMatrix.map { $0 / factor }
         
         var scaledMpowers = Mpowers
-        
         if (scaling > 0) {
             for k in 0..<Mpowers.count {
                 let factor = convertToType(floatLiteral: pow(2.0, Double((k+1) * scaling)))
@@ -82,26 +75,18 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             }
         }
         
-        print("scaledM = \(scaledM)")
-        print("scaledMpowers = \(scaledMpowers)")
-        
         result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
         
         if (recomputeDiags) {
-            print("scaledM = \(scaledM)")
             recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
-            print("recomputed result = \(result)")
         }
         
         if (scaling > 0) {
             for _ in 0..<scaling {
                 result = result * result
-                print("result = \(result)")
                 if (recomputeDiags) {
                     scaledM = 2.0 * scaledM
                     recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
-                    print("scaledM = \(scaledM)")
-                    print("recomputed result = \(result)")
                 }
             }
         }
@@ -229,15 +214,10 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
             return nil
         }
         
-        print("U = \(U)")
-        print("V = \(V)")
-        
         guard let solve = (V-U).solve(2.0 * U) else {
-            print("returning nil")
             return nil
         }
         
-        print("solve = \(solve)")
         F = solve + I
         
         return F
@@ -335,8 +315,6 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 k = k + 1
             }
         }
-        
-        print("structure.count = \(structure.count)")
         
         if (matrix[matrix.rows-1, matrix.rows-2] != zero) {
             structure.append(2)

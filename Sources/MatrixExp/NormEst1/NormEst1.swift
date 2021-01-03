@@ -54,7 +54,6 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         
         var Y: Matrix<Type>
         if (self.t == A.rows || A.rows <= 4) {
-            print("Calling NormEst1.computeExactly \(A)")
             (self.estimate, self.V, self.W) = NormEst1.computeExactly(A, order: order)
             numberOfIterations = 0
             numberOfProducts = 1
@@ -233,9 +232,6 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             
             V = Vector<Type>(repeating: 0.0, count: n)
             V[est_j] = 1
-            
-            print("ParallelCol \(rpt_S)")
-            print("RepeatedUnitVectors \(rpt_e)")
         }
     }
     
