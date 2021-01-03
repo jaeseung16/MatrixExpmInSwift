@@ -70,7 +70,6 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         if (scaling > 0) {
             for k in 0..<Mpowers.count {
                 let factor = convertToType(floatLiteral: pow(2.0, Double((k+1) * scaling)))
-                print("k = \(k), factor = \(factor)")
                 scaledMpowers[k] = Mpowers[k].map { $0 / factor }
             }
         }
@@ -286,7 +285,6 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
         let zero = convertToType(floatLiteral: 0.0)
         var structure = [Int]()
         
-        print("matrix.rows = \(matrix.rows)")
         if (matrix.rows == 1) {
             structure.append(0)
             return structure
