@@ -5,7 +5,6 @@
 //  Created by Jae Seung Lee on 10/11/20.
 //
 
-import Foundation
 import LANumerics
 
 struct MatrixExpConst<Type> where Type: Exponentiable {

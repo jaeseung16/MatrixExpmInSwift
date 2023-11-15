@@ -44,7 +44,7 @@ public class MatrixExp<Type> where Type: Exponentiable, Type.Magnitude: Real {
     }
     
     static func exp(hermitianMatrix: Matrix<Type>) -> Matrix<Type> {
-        let (eigenValues, schurForm, schurVectors) = hermitianMatrix.schur()!
+        let (_, schurForm, schurVectors) = hermitianMatrix.schur()!
         
         var expSchurForm = Matrix<Type>.eye(hermitianMatrix.rows)
         for k in 0..<schurForm.columns {
