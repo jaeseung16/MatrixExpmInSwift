@@ -15,13 +15,13 @@ public protocol Exponentiable: LANumeric {
 
 extension Complex: Exponentiable where RealType: LANumeric {
     public func exponentiation() -> Complex<RealType> {
-        let exponentiationOfRealPart = Complex<RealType>(RealType.exp(self.real))
-        let exponentiationOfImaginaryPart = Complex<RealType>(RealType.cos(self.imaginary), RealType.sin(self.imaginary))
+        let exponentiationOfRealPart = Complex<RealType>(RealType.exp(real))
+        let exponentiationOfImaginaryPart = Complex<RealType>(RealType.cos(imaginary), RealType.sin(imaginary))
         return exponentiationOfRealPart * exponentiationOfImaginaryPart
     }
     
     public func squareRoot() -> Complex<RealType> {
-        return Complex<RealType>(length: self.length.squareRoot(), phase: self.phase/2.0)
+        return Complex<RealType>(length: length.squareRoot(), phase: phase/2.0)
     }
 }
 
