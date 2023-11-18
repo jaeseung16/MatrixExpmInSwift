@@ -9,12 +9,13 @@ import Foundation
 import Numerics
 import LANumerics
 
-class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
+class NormEst1<T> where T: Exponentiable, T.Magnitude: Real {
+    
     // MARK: - Properties, Inputs
-    let A: Matrix<Type>
+    let A: Matrix<T>
     let n: Int
     let t: Int
-    var X: Matrix<Type>
+    var X: Matrix<T>
     let order: Int
     
     // MARK: - Properties
@@ -22,13 +23,15 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
     
     // MARK: - Properties, Results
     var estimate: Double
-    var V = Vector<Type>()
-    var W = Vector<Type>()
+    var V = Vector<T>()
+    var W = Vector<T>()
     var numberOfIterations: Int
     var numberOfProducts: Int
     var terminationReason: NormEst1TerminationReason
+    var numberOfParallelColumns: Int
+    var numberOfRepeatedUnitVectors: Int
     
-    init(A: Matrix<Type>, t: Int = 2, order: Int = 1, toPrint: Bool = false) {
+    init(A: Matrix<T>, t: Int = 2, order: Int = 1, toPrint: Bool = false) {
         /*
         guard A.rows == A.columns else {
             print("Cannot initialize. The matrix is not square.")
@@ -49,16 +52,16 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         self.t = t
         self.order = order
         
-        var rpt_S = 0
-        var rpt_e = 0
+        var rpt_S = 0 // MATLAB:normest1:ParallelCols
+        var rpt_e = 0 // MATLAB:normest1:RepeatedUnitVectors
         
-        var Y: Matrix<Type>
+        var Y: Matrix<T>
         if (self.t == A.rows || A.rows <= 4) {
             (self.estimate, self.V, self.W) = NormEst1.computeExactly(A, order: order)
             numberOfIterations = 0
             numberOfProducts = 1
-            self.X = Matrix<Type>()
-            self.terminationReason = .NotApplicable
+            self.X = Matrix<T>()
+            self.terminationReason = .noIterationNormComputedExactly
         } else {
             self.X = NormEst1.initializeX(rows: self.n, columns: self.t, toPrint: toPrint)
             
@@ -69,11 +72,11 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             
             var ind = [Int](repeating: 0, count: self.t)
             var ind_hist = [Int](repeating: 0, count: self.t)
-            var S = Matrix<Type>(rows: n, columns: self.t)
+            var S = Matrix<T>(rows: n, columns: self.t)
             
             var est_old = 0.0
             var est_j = 0
-            var info = NormEst1TerminationReason.NotApplicable
+            var info = NormEst1TerminationReason.notApplicable
             
             var est = 0.0
             while (true) {
@@ -115,14 +118,14 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 
                 if (it >= 2 && est <= est_old) {
                     est = est_old
-                    info = .EstimateNotIncreased
+                    info = .estimateNotIncreased
                     break
                 }
                 est_old = est
                 
                 if (it > itmax) {
                     it = itmax
-                    info = .IterationLimitReachedn
+                    info = .iterationLimitReached
                     break
                 }
                 
@@ -130,7 +133,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 S = NormEst1.mysign(A: Y)
                 
                 // For Double
-                if (Type(floatLiteral: 0.0 as! Type.FloatLiteralType) is Double) {
+                if (T(floatLiteral: 0.0 as! T.FloatLiteralType) is Double) {
                     let SS = oldS.transpose * S
                     let absSS = SS.map { $0.length as! Double }
                     var maxVector = Vector<Double>()
@@ -141,7 +144,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                     let np = maxVector.reduce(0, +)
                     
                     if (np == Double(self.t)) {
-                        info = .RepeatedSignMatrix
+                        info = .repeatedSignMatrix
                         break
                     }
 
@@ -167,7 +170,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                 if (it >= 2) {
                     let maxZvals = Zvals.reduce(Double.greatestFiniteMagnitude, {x, y in max(x,y)})
                     if (maxZvals == Zvals[est_j]) {
-                        info = .PowerMethodConvergenceTest
+                        info = .powerMethodConvergenceTest
                         break
                     }
                 }
@@ -189,7 +192,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                     }
                     
                     if (rep == self.t) {
-                        info = .RepeatedUnitVectors
+                        info = .repeatedUnitVectors
                         break
                     }
                     
@@ -215,7 +218,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
                     ind_hist.append(contentsOf: ind[0..<imax])
                 }
                 
-                self.X = Matrix<Type>(repeating: 0.0, rows: n, columns: self.t)
+                self.X = Matrix<T>(repeating: 0.0, rows: n, columns: self.t)
                 for j in 0..<imax {
                     self.X[ind[j], j] = 1
                 }
@@ -230,12 +233,15 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
             numberOfIterations = it
             numberOfProducts = nmv
             
-            V = Vector<Type>(repeating: 0.0, count: n)
+            V = Vector<T>(repeating: 0.0, count: n)
             V[est_j] = 1
         }
+        
+        self.numberOfParallelColumns = rpt_S
+        self.numberOfRepeatedUnitVectors = rpt_e
     }
     
-    static private func computeExactly(_ A: Matrix<Type>, order: Int = 1) -> (Double, Vector<Type>, Vector<Type>) {
+    private static func computeExactly(_ A: Matrix<T>, order: Int = 1) -> (Double, Vector<T>, Vector<T>) {
         var B = A
         
         for _ in 0..<(order-1) {
@@ -251,7 +257,7 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         let elements = vals.map { $0.element }
         let offests = vals.map { $0.offset }
         
-        var V = Vector<Type>(repeating: 0.0, count: A.rows)
+        var V = Vector<T>(repeating: 0.0, count: A.rows)
         V[offests[A.rows-1]] = 1.0
         
         let W = A[0..<A.rows, offests[A.rows-1]..<(offests[A.rows-1]+1)].vector
@@ -259,37 +265,42 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return (elements[0], V, W)
     }
     
-    static private func initializeX(rows: Int, columns: Int, toPrint: Bool) -> Matrix<Type> {
-        var Xtemp = Matrix<Type>(repeating : 1.0, rows: rows, columns: columns)
+    static func initializeX(rows: Int, columns: Int, toPrint: Bool) -> Matrix<T> {
+        var Xtemp = Matrix<T>(repeating : 1.0, rows: rows, columns: columns)
         
         let B1 = 2.0 * NormEst1.randomMatrix(rows: rows, columns: columns - 1)
-        let B2 = Matrix<Type>(repeating: 1.0, rows: rows, columns: columns - 1)
+        let B2 = Matrix<T>(repeating: 1.0, rows: rows, columns: columns - 1)
         Xtemp[0..<rows, 1..<columns] = NormEst1.mysign(A: B1 - B2)
         
-        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<Type>(), toPrint: toPrint)
+        (Xtemp, _) = NormEst1.undupli(S: Xtemp, oldS: Matrix<T>(), toPrint: toPrint)
         
-        return Xtemp.map { $0 / Type(floatLiteral: Double(rows) as! Type.FloatLiteralType) }
+        return Xtemp.map { $0 / T(exactly: rows)! }
     }
     
-    static func mysign(A: Matrix<Type>) -> Matrix<Type> {
-        let S = A.map { $0 == 0.0 ? 1.0 : ($0 / Type(floatLiteral: $0.length as! Type.FloatLiteralType))}
+    static private func mysign(A: Matrix<T>) -> Matrix<T> {
+        // MATLAB implementation
+        // SIGN(X) = X ./ ABS(X). -> 1 if greater than zero, 0 if equalt to zero, -1 if less than zero
+        // S = sign(A); S(S==0) = 1;
+        // In any case, we can't divide by 0
+        let S = A.map { $0 == 0.0 ? 1.0 : ($0 / T(floatLiteral: $0.length as! T.FloatLiteralType))}
         return S
     }
     
-    // Look for and replace columns of S parallel to other columns of S or to columns of oldS
-    static func undupli(S: Matrix<Type>, oldS: Matrix<Type>, toPrint: Bool) -> (Matrix<Type>, Int) {
+    static func undupli(S: Matrix<T>, oldS: Matrix<T>, toPrint: Bool) -> (Matrix<T>, Int) {
+        // Look for and replace columns of S parallel to other columns of S or to columns of oldS
+        var r = 0
+        
         if (S.columns == 1) {
-            return (S, 0)
+            return (S, r)
         }
         
         let nRows = S.rows
         let nColumns = S.columns
         var Sout = S
-        var r = 0
         
         var startColumn: Int
         var lastColumn: Int
-        var W = Matrix<Type>(rows: nRows, columns: 2 * nColumns - 1)
+        var W = Matrix<T>(rows: nRows, columns: 2 * nColumns - 1)
         if oldS.count == 0 {
             W[0..<nRows, 0..<1] = S[0..<nRows, 0..<1]
             startColumn = 1
@@ -302,11 +313,11 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         
         for col in startColumn..<nColumns {
             var rpt = 0
-            while (isMaxN(S: Sout[0..<nRows, col..<(col+1)], W: W, n: nRows, lastColumn: lastColumn)) {
+            while isMaxN(S: Sout[0..<nRows, col..<(col+1)], W: W, n: nRows, lastColumn: lastColumn) {
                 rpt += 1
                 
                 let A = 2.0 * NormEst1.randomMatrix(rows: nRows, columns: 1)
-                let B = Matrix<Type>(repeating: 1.0, rows: nRows, columns: 1)
+                let B = Matrix<T>(repeating: 1.0, rows: nRows, columns: 1)
                 Sout[0..<nRows, col..<(col+1)] = NormEst1.mysign(A: A-B)
                 if (rpt > Int(Float(nRows)/Float(nColumns))) {
                     break
@@ -339,19 +350,18 @@ class NormEst1<Type> where Type: Exponentiable, Type.Magnitude: Real {
         return vals
     }
     
-    static func isMaxN(S: Matrix<Type>, W: Matrix<Type>, n: Int, lastColumn: Int) -> Bool {
+    static func isMaxN(S: Matrix<T>, W: Matrix<T>, n: Int, lastColumn: Int) -> Bool {
         let temp = S.transpose * W[0..<n, 0..<lastColumn]
         let absTemp = temp.map { $0.length as! Double}
         let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, { max($0, $1) })
         return maxElement == Double(n)
     }
     
-    static func randomMatrix(rows: Int, columns: Int) -> Matrix<Type> {
-        var elements = Vector<Type>()
-        for _ in 0..<(rows * columns) {
-            elements.append(Type(floatLiteral: drand48() as! Type.FloatLiteralType))
-        }
-        return Matrix<Type>(rows: rows, columns: columns, elements: elements)
+    static func randomMatrix(rows: Int, columns: Int) -> Matrix<T> {
+        let range = 0..<(rows * columns)
+        // drand48() to Double.random() causes an issue with unit tests probably due to the seed
+        let elements : Vector<T> = range.map { _ in T(floatLiteral: drand48() as! T.FloatLiteralType) }
+        return Matrix<T>(rows: rows, columns: columns, elements: elements)
     }
     
 }
