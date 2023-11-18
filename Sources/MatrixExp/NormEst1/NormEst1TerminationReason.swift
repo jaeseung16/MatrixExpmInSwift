@@ -6,10 +6,11 @@
 //
 
 enum NormEst1TerminationReason: String {
-    case IterationLimitReachedn
-    case EstimateNotIncreased
-    case RepeatedSignMatrix
-    case PowerMethodConvergenceTest
-    case RepeatedUnitVectors
-    case NotApplicable
+    case iterationLimitReached
+    case estimateNotIncreased
+    case repeatedSignMatrix
+    case powerMethodConvergenceTest
+    case repeatedUnitVectors
+    case noIterationNormComputedExactly
+    case notApplicable
 }
