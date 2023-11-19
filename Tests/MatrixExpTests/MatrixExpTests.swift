@@ -21,15 +21,15 @@ final class MatrixExpTests: XCTestCase {
     }
     
     func testPadeCoefficients() {
-        let order = 5
+        let order = PadeApproximantOrder.five
         let coeff: Vector<Double> = [30240.0, 15120.0, 3360.0, 420.0, 30.0, 1.0]
-        let expected = MatrixExpConst<Double>.padeCoefficients(for: order)
+        let expected = MatrixExpConst<Double>.padeCoefficients(order)
 
         XCTAssertEqual(coeff, expected)
     }
     
     func testTheta() {
-        let order = 7
+        let order = PadeApproximantOrder.seven
         let theta = 9.504178996162932e-001
         let expected = MatrixExpConst<Double>.theta(for: order)
 
@@ -38,7 +38,7 @@ final class MatrixExpTests: XCTestCase {
     
     func testScalingAndOrder() {
         let M = Matrix<Double>(rows: [[0, 1], [1, 0]])
-        let order = 9
+        let order = PadeApproximantOrder.nine
         let scaling = 0
         
         let (s, o, _) = MatrixExp<Double>.expmParams(for: M)
