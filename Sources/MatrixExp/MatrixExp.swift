@@ -56,15 +56,14 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     static func exp(matrix: Matrix<T>) -> (Matrix<T>, Int, PadeApproximantOrder) {
         let recomputeDiags = matrix.isSchur
-        let copiedMatrix = matrix
         var result = Matrix<T>.zeros(matrix.rows, matrix.columns)
         
-        let blockFormat = recomputeDiags ? copiedMatrix.quasiTrianglularStructure() : nil
+        let blockFormat = recomputeDiags ? matrix.quasiTrianglularStructure() : nil
         
-        let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
+        let (scaling, order, Mpowers) = expmParams(for: matrix)
         
         let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : one
-        var scaledM = copiedMatrix.map { $0 / factor }
+        var scaledM = matrix.map { $0 / factor }
         
         var scaledMpowers = Mpowers
         if (scaling > 0) {
