@@ -181,11 +181,10 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     static func padeApprox(for M: Matrix<T>, Mpowers: [Matrix<T>], order: PadeApproximantOrder) -> Matrix<T>? {
         let coeffs = MatrixExpConst<T>.padeCoefficients(order)
         let I = Matrix<T>.eye(M.rows)
-        var F = Matrix<T>.eye(M.rows)
         var Mpowers2 = Mpowers
         
-        var U = Matrix<T>.eye(M.rows)
-        var V = Matrix<T>.eye(M.rows)
+        var U = I
+        var V = I
         
         if (order == .thirteen) {
             let U1 = coeffs[13] * Mpowers[5] + coeffs[11] * Mpowers[3] + coeffs[9] * Mpowers[1]
@@ -197,12 +196,12 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             V = Mpowers[5] * V1 + V2 + coeffs[0] * I
         } else if (order == .three || order == .five || order == .seven || order == .nine) {
             if (order == .nine && Mpowers.count == 6) {
-                Mpowers2.append(Matrix<T>.eye(M.rows))
+                Mpowers2.append(I)
                 Mpowers2.append(Mpowers[1] * Mpowers[5])
             }
             
-            U = coeffs[1] * Matrix<T>.eye(M.rows)
-            V = coeffs[0] * Matrix<T>.eye(M.rows)
+            U = coeffs[1] * I
+            V = coeffs[0] * I
             
             for k in stride(from: order.rawValue, through: 3, by: -2) {
                 U = U + coeffs[k] * Mpowers2[k-2]
@@ -217,10 +216,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         guard let solve = (V-U).solve(2.0 * U) else {
             return nil
         }
-        
-        F = solve + I
-        
-        return F
+        return solve + I
     }
     
     static func ell(_ matrix: Matrix<T>, coeff: Double, order: Int) -> Double {
