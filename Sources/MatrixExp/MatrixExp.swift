@@ -95,12 +95,16 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     static func sinch(_ x: T) -> T {
         var value: T
-        if x == convertToType(floatLiteral: 0.0) {
+        if x == T.zero {
             value = convertToType(floatLiteral: 1.0)
         } else {
-            value = (x.exponentiation() - (-x).exponentiation()) / x / convertToType(floatLiteral: 2.0)
+            value = sinh(x)
         }
         return value
+    }
+    
+    private static func sinh(_ x: T) -> T {
+        return (x.exponentiation() - (-x).exponentiation()) / (2.0 * x)
     }
     
     static func expmParams(for M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
