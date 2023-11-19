@@ -122,12 +122,12 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         let d4 = pow(Mpowers[3].manhattanNorm as! Double, 1.0/4.0)
         let d6 = pow(Mpowers[5].manhattanNorm as! Double, 1.0/6.0)
-        let eta1 = max(d4, d6)
+        let η1 = max(d4, d6)
         
-        if (eta1 <= MatrixExpConst<Double>.theta(for: .three)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
+        if (η1 <= MatrixExpConst<T>.theta(for: .three)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
             return (scaling, .three, Mpowers)
         }
-        if (eta1 <= MatrixExpConst<Double>.theta(for: .five)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[1], order: 5) == 0.0) {
+        if (η1 <= MatrixExpConst<T>.theta(for: .five)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[1], order: 5) == 0.0) {
             return (scaling, .five, Mpowers)
         }
         
@@ -139,11 +139,11 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             d8 = pow(normest.estimate, 1.0/8.0)
         }
         
-        let eta3 = max(d6, d8)
-        if (eta3 <= MatrixExpConst<Double>.theta(for: .seven)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
+        let η3 = max(d6, d8)
+        if (η3 <= MatrixExpConst<T>.theta(for: .seven)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
             return (scaling, .seven, Mpowers)
         }
-        if (eta3 <= MatrixExpConst<Double>.theta(for: .nine)! && ell(M, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[3], order: 9) == 0.0) {
+        if (η3 <= MatrixExpConst<T>.theta(for: .nine)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[3], order: 9) == 0.0) {
             return (scaling, .nine, Mpowers)
         }
         
@@ -155,27 +155,23 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             d10 = pow(normest.estimate, 1.0/10.0)
         }
 
-        let eta4 = max(d8, d10)
-        let eta5 = min(eta3, eta4)
-        scaling = Int(max( ceil( log2( eta5 / MatrixExpConst<Double>.theta(for: .thirteen)! ) ), 0))
+        let η4 = max(d8, d10)
+        let η5 = min(η3, η4)
+        scaling = Int(max( ceil(log2( η5 / MatrixExpConst<T>.theta(for: .thirteen)! )), 0))
         
         let factor = convertToType(floatLiteral: pow(2.0, Double(scaling)))
         let scaledM = M.map { $0 / factor }
-        let sFromEll = ell(scaledM, coeff: MatrixExpConst<Double>.coefficientsOfBackwardsErrorFunction[4], order: 5)
+        let sFromEll = ell(scaledM, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[4], order: 5)
         
-        if (sFromEll.isNaN) {
-            let norm1 = M.manhattanNorm as! Double
-            let theta = MatrixExpConst<T>.theta(for: .thirteen)!
-            
-            let needAName = norm1/theta
-            
-            let t = log2(needAName.significand)
-            scaling = needAName.exponent - (t == 0.5 ? 1 : 0)
-        } else {
-            scaling = scaling + Int(sFromEll)
-        }
+        scaling = sFromEll.isNaN ? revertToOldEstimate(M) : scaling + Int(sFromEll)
 
         return (scaling, .thirteen, Mpowers)
+    }
+    
+    private static func revertToOldEstimate(_ matrix: Matrix<T>) -> Int {
+        let twoToThePowerOfScaling = (matrix.manhattanNorm as! Double) / MatrixExpConst<T>.theta(for: .thirteen)!
+        let t = log2(twoToThePowerOfScaling.significand)
+        return twoToThePowerOfScaling.exponent - (t == 0.5 ? 1 : 0)
     }
     
     static func padeApprox(for M: Matrix<T>, Mpowers: [Matrix<T>], order: PadeApproximantOrder) -> Matrix<T>? {
