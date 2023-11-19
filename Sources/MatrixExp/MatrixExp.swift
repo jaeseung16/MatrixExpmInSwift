@@ -14,7 +14,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         if matrix.isSquare {
             if matrix.isDiag {
-                self.result = MatrixExp<T>.exp(diagMatrix: matrix)
+                self.result = MatrixExp.exp(diagMatrix: matrix)
                 calculationType = .diag
                 self.scaling = 0
                 self.orderPadeApproximant = nil
@@ -24,7 +24,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
                 self.scaling = 0
                 self.orderPadeApproximant = nil
             } else {
-                (self.result, self.scaling, self.orderPadeApproximant) = MatrixExp<T>.exp(matrix: matrix)
+                (self.result, self.scaling, self.orderPadeApproximant) = MatrixExp.exp(matrix: matrix)
                 calculationType = .pade
             }
         } else {
@@ -35,21 +35,18 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         }
     }
     
-    static func exp(diagMatrix: Matrix<T>) -> Matrix<T> {
-        var result = Matrix<T>.zeros(diagMatrix.rows, diagMatrix.columns)
-        for k in 0..<diagMatrix.columns {
-            result[k, k] = diagMatrix[k, k].exponentiation()
-        }
-        return result
+    private static func exp(diagMatrix: Matrix<T>) -> Matrix<T> {
+        let range = 0..<diagMatrix.columns
+        let diag = range.map { diagMatrix[$0,$0].exponentiation() }
+        return Matrix<T>(rows: diagMatrix.rows, columns: diagMatrix.columns, diagonal: diag)
     }
     
-    static func exp(hermitianMatrix: Matrix<T>) -> Matrix<T> {
+    private static func exp(hermitianMatrix: Matrix<T>) -> Matrix<T> {
         let (_, schurForm, schurVectors) = hermitianMatrix.schur()!
-        
-        var expSchurForm = Matrix<T>.eye(hermitianMatrix.rows)
-        for k in 0..<schurForm.columns {
-            expSchurForm[k, k] = schurForm[k, k].exponentiation()
-        }
+
+        let range = 0..<schurForm.columns
+        let diagonal = range.map { schurForm[$0,$0].exponentiation() }
+        let expSchurForm = Matrix<T>(rows: schurForm.rows, columns: schurForm.columns, diagonal: diagonal)
         
         return schurVectors * expSchurForm * schurVectors.adjoint
     }
@@ -60,31 +57,32 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         let blockFormat = recomputeDiags ? matrix.quasiTrianglularStructure() : nil
         
-        let (scaling, order, Mpowers) = expmParams(for: matrix)
+        let (scaling, order, matrixPowers) = expmParams(for: matrix)
         
         let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : one
-        var scaledM = matrix.map { $0 / factor }
+        var scaledMatrix = scaling > 0 ? matrix.map { $0 / factor } : matrix
         
-        var scaledMpowers = Mpowers
-        if (scaling > 0) {
-            for k in 0..<Mpowers.count {
-                let factor = convertToType(floatLiteral: pow(2.0, Double((k+1) * scaling)))
-                scaledMpowers[k] = Mpowers[k].map { $0 / factor }
+        let scaledMatrixPowers = (0..<matrixPowers.count).map { power in
+            if scaling > 0 {
+                let factor = convertToType(floatLiteral: pow(2.0, Double((power+1) * scaling)))
+                return matrixPowers[power].map { $0 / factor }
+            } else {
+                return matrixPowers[power]
             }
         }
         
-        result = padeApprox(for: scaledM, Mpowers: scaledMpowers, order: order)!
+        result = padeApprox(for: scaledMatrix, Mpowers: scaledMatrixPowers, order: order)!
         
         if (recomputeDiags) {
-            recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+            recomputeBlockDiag(scaledMatrix, exponentiated: &result, structure: blockFormat!)
         }
         
         if (scaling > 0) {
             for _ in 0..<scaling {
                 result = result * result
                 if (recomputeDiags) {
-                    scaledM = 2.0 * scaledM
-                    recomputeBlockDiag(scaledM, exponentiated: &result, structure: blockFormat!)
+                    scaledMatrix = 2.0 * scaledMatrix
+                    recomputeBlockDiag(scaledMatrix, exponentiated: &result, structure: blockFormat!)
                 }
             }
         }
