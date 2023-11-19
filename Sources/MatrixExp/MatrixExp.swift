@@ -71,7 +71,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             }
         }
         
-        result = padeApprox(for: scaledMatrix, Mpowers: scaledMatrixPowers, order: order)!
+        result = padeApprox(for: scaledMatrix, evenPowersOfM: scaledMatrixPowers, order: order)!
         
         if (recomputeDiags) {
             recomputeBlockDiag(scaledMatrix, exponentiated: &result, structure: blockFormat!)
@@ -111,45 +111,49 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     static func expmParams(for M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
         let isSmall = M.rows < 150
         
-        var Mpowers = [Matrix<T>](repeating: M, count: 6)
-        Mpowers[1] = M * M
-        Mpowers[3] = Mpowers[1] * Mpowers[1]
-        Mpowers[5] = Mpowers[1] * Mpowers[3]
+        // Need only even powers
+        // 2 -> 1 -> 0
+        // 4 -> 3 -> 1
+        // 6 -> 5 -> 2
+        var evenPowers = [Matrix<T>](repeating: M, count: 3)
+        evenPowers[0] = M * M
+        evenPowers[1] = evenPowers[0] * evenPowers[0]
+        evenPowers[2] = evenPowers[0] * evenPowers[1]
         
         var scaling = 0
         
-        let d4 = pow(Mpowers[3].manhattanNorm as! Double, 1.0/4.0)
-        let d6 = pow(Mpowers[5].manhattanNorm as! Double, 1.0/6.0)
+        let d4 = pow(evenPowers[1].manhattanNorm as! Double, 1.0/4.0)
+        let d6 = pow(evenPowers[2].manhattanNorm as! Double, 1.0/6.0)
         let η1 = max(d4, d6)
         
         if (η1 <= MatrixExpConst<T>.theta(for: .three)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
-            return (scaling, .three, Mpowers)
+            return (scaling, .three, evenPowers)
         }
         if (η1 <= MatrixExpConst<T>.theta(for: .five)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[1], order: 5) == 0.0) {
-            return (scaling, .five, Mpowers)
+            return (scaling, .five, evenPowers)
         }
         
         var d8: Double
         if (isSmall) {
-            d8 = pow((Mpowers[3] * Mpowers[3]).manhattanNorm as! Double, 1.0/8.0)
+            d8 = pow((evenPowers[1] * evenPowers[1]).manhattanNorm as! Double, 1.0/8.0)
         } else {
-            let normest = NormEst1<T>(A: Mpowers[3], order: 2)
+            let normest = NormEst1<T>(A: evenPowers[3], order: 2)
             d8 = pow(normest.estimate, 1.0/8.0)
         }
         
         let η3 = max(d6, d8)
         if (η3 <= MatrixExpConst<T>.theta(for: .seven)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
-            return (scaling, .seven, Mpowers)
+            return (scaling, .seven, evenPowers)
         }
         if (η3 <= MatrixExpConst<T>.theta(for: .nine)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[3], order: 9) == 0.0) {
-            return (scaling, .nine, Mpowers)
+            return (scaling, .nine, evenPowers)
         }
         
         var d10: Double
         if (isSmall) {
-            d10 = pow((Mpowers[3] * Mpowers[5]).manhattanNorm as! Double, 1.0/10.0)
+            d10 = pow((evenPowers[1] * evenPowers[1]).manhattanNorm as! Double, 1.0/10.0)
         } else {
-            let normest = NormEst1<T>(A: Mpowers[1], order: 5)
+            let normest = NormEst1<T>(A: evenPowers[0], order: 5)
             d10 = pow(normest.estimate, 1.0/10.0)
         }
 
@@ -163,7 +167,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         scaling = sFromEll.isNaN ? revertToOldEstimate(M) : scaling + Int(sFromEll)
 
-        return (scaling, .thirteen, Mpowers)
+        return (scaling, .thirteen, evenPowers)
     }
     
     private static func revertToOldEstimate(_ matrix: Matrix<T>) -> Int {
@@ -172,34 +176,39 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         return twoToThePowerOfScaling.exponent - (t == 0.5 ? 1 : 0)
     }
     
-    static func padeApprox(for M: Matrix<T>, Mpowers: [Matrix<T>], order: PadeApproximantOrder) -> Matrix<T>? {
+    static func padeApprox(for M: Matrix<T>, evenPowersOfM: [Matrix<T>], order: PadeApproximantOrder) -> Matrix<T>? {
         let coeffs = MatrixExpConst<T>.padeCoefficients(order)
         let I = Matrix<T>.eye(M.rows)
-        var Mpowers2 = Mpowers
         
         var U = I
         var V = I
         
         if (order == .thirteen) {
-            let U1 = coeffs[13] * Mpowers[5] + coeffs[11] * Mpowers[3] + coeffs[9] * Mpowers[1]
-            let U2 = coeffs[7] * Mpowers[5] + coeffs[5] * Mpowers[3] + coeffs[3] * Mpowers[1]
-            U = M * (Mpowers[5] * U1 + U2 + coeffs[1] * I)
+            let matrix2 = evenPowersOfM[0]
+            let matrix4 = evenPowersOfM[1]
+            let matrix6 = evenPowersOfM[2]
             
-            let V1 = coeffs[12] * Mpowers[5] + coeffs[10] * Mpowers[3] + coeffs[8] * Mpowers[1]
-            let V2 = coeffs[6] * Mpowers[5] + coeffs[4] * Mpowers[3] + coeffs[2] * Mpowers[1]
-            V = Mpowers[5] * V1 + V2 + coeffs[0] * I
+            let U1 = coeffs[13] * matrix6 + coeffs[11] * matrix4 + coeffs[9] * matrix2
+            let U2 = coeffs[7] * matrix6 + coeffs[5] * matrix4 + coeffs[3] * matrix2
+            U = M * (matrix6 * U1 + U2 + coeffs[1] * I)
+            
+            let V1 = coeffs[12] * matrix6 + coeffs[10] * matrix4 + coeffs[8] * matrix2
+            let V2 = coeffs[6] * matrix6 + coeffs[4] * matrix4 + coeffs[2] * matrix2
+            V = matrix6 * V1 + V2 + coeffs[0] * I
         } else if (order == .three || order == .five || order == .seven || order == .nine) {
-            if (order == .nine && Mpowers.count == 6) {
-                Mpowers2.append(I)
-                Mpowers2.append(Mpowers[1] * Mpowers[5])
+            var evenPowers = evenPowersOfM
+            if (order == .nine && evenPowersOfM.count == 3) {
+                evenPowers.append(evenPowersOfM[0] * evenPowersOfM[2])
             }
             
             U = coeffs[1] * I
             V = coeffs[0] * I
             
+            // k = 9, 7, 5, 3 -> index for matrix powers = 3, 2, 1, 0
             for k in stride(from: order.rawValue, through: 3, by: -2) {
-                U = U + coeffs[k] * Mpowers2[k-2]
-                V = V + coeffs[k-1] * Mpowers2[k-2]
+                let index = (k-3)/2
+                U = U + coeffs[k] * evenPowers[index]
+                V = V + coeffs[k-1] * evenPowers[index]
             }
             
             U = M * U
