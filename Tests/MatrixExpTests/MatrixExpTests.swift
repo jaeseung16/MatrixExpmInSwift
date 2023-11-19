@@ -9,6 +9,11 @@ final class MatrixExpTests: XCTestCase {
         XCTAssertTrue(diagMatrix.isDiag)
     }
     
+    func testIsDiagFalse() {
+        let diagMatrix = Matrix<Double>(rows: [[1.0, 0.5], [0.0, -1.0]])
+        XCTAssertFalse(diagMatrix.isDiag)
+    }
+    
     func testDiag() {
         let diag = Vector<Double>([1.0, 0.5, 0.0, -1.0])
         let diagMatrix = Matrix<Double>(diagonal: diag)

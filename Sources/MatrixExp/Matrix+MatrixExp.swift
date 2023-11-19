@@ -15,11 +15,8 @@ extension Matrix {
     public var isDiag: Bool {
         var isDiag = false
         if self.isSquare {
-            var diag = Vector<Element>()
-            for k in 0..<self.columns {
-                diag.append(self[k,k])
-            }
-            isDiag = Matrix(diagonal: diag) == self
+            let range = 0..<self.columns
+            isDiag = Matrix(diagonal: range.map { self[$0,$0] }) == self
         }
         return isDiag
     }
