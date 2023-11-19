@@ -121,7 +121,7 @@ final class MatrixExpTests: XCTestCase {
                                       [0, 0, 1, 1]])
         
         let expected = [1, 0, 2]
-        let result = MatrixExp.quasiTrianglularStructure(M)
+        let result = M.quasiTrianglularStructure()
         
         XCTAssertEqual(expected, result)
     }
