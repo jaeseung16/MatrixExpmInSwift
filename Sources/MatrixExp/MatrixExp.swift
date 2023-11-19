@@ -63,7 +63,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         let (scaling, order, Mpowers) = expmParams(for: copiedMatrix)
         
-        let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : 1.0
+        let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : one
         var scaledM = copiedMatrix.map { $0 / factor }
         
         var scaledMpowers = Mpowers
@@ -96,7 +96,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     static func sinch(_ x: T) -> T {
         var value: T
         if x == T.zero {
-            value = convertToType(floatLiteral: 1.0)
+            value = one
         } else {
             value = sinh(x) / x
         }
@@ -104,11 +104,11 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     }
     
     private static func sinh(_ x: T) -> T {
-        return (x.exponentiation() - (-x).exponentiation()) / 2.0
+        return (x.exponentiation() - (-x).exponentiation()) / two
     }
     
     private static func cosh(_ x: T) -> T {
-        return (x.exponentiation() + (-x).exponentiation()) / 2.0
+        return (x.exponentiation() + (-x).exponentiation()) / two
     }
     
     static func expmParams(for M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
@@ -234,7 +234,6 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     static func recomputeBlockDiag(_ matrix: Matrix<T>, exponentiated: inout Matrix<T>, structure: [Int]) {
         let n = matrix.rows - 1
-        let two = convertToType(floatLiteral: 2.0)
         
         for k in 0..<n {
             switch structure[k] {
@@ -283,6 +282,14 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     static func convertToType(floatLiteral: Double) -> T {
         return T(floatLiteral: floatLiteral as! T.FloatLiteralType)
+    }
+    
+    private static var one: T {
+        T(floatLiteral: 1.0 as! T.FloatLiteralType)
+    }
+    
+    private static var two: T {
+        T(floatLiteral: 2.0 as! T.FloatLiteralType)
     }
 }
 
