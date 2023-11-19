@@ -98,13 +98,17 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         if x == T.zero {
             value = convertToType(floatLiteral: 1.0)
         } else {
-            value = sinh(x)
+            value = sinh(x) / x
         }
         return value
     }
     
     private static func sinh(_ x: T) -> T {
-        return (x.exponentiation() - (-x).exponentiation()) / (2.0 * x)
+        return (x.exponentiation() - (-x).exponentiation()) / 2.0
+    }
+    
+    private static func cosh(_ x: T) -> T {
+        return (x.exponentiation() + (-x).exponentiation()) / 2.0
     }
     
     static func expmParams(for M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
@@ -235,20 +239,18 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         for k in 0..<n {
             switch structure[k] {
             case 1:
-                let t11 = matrix[k, k]
-                let t22 = matrix[k+1, k+1]
+                let t11 = matrix[k,k]
+                let t22 = matrix[k+1,k+1]
                 
-                let ave = (t11 + t22) / two
-                let df = (t11 - t22) / two
+                let avg = (t11+t22)/two
+                let df = (t11-t22)/two
                 
                 var x12: T
                 // Compare lengths because T can be Complex
-                if (max(ave.length as! Double, df.length as! Double) < log(Double.greatestFiniteMagnitude)) {
-                    let factor = ave.exponentiation() * sinch((t22 - t11) / two)
-                    x12 = matrix[k, k+1] * factor
+                if max(avg.length as! Double, df.length as! Double) < log(Double.greatestFiniteMagnitude) {
+                    x12 = matrix[k, k+1] * avg.exponentiation() * sinch((t22 - t11) / two)
                 } else {
-                    let factor = (t22.exponentiation() - t11.exponentiation()) / (t22 - t11)
-                    x12 = matrix[k, k+1] * factor
+                    x12 = matrix[k, k+1] * (t22.exponentiation() - t11.exponentiation()) / (t22 - t11)
                 }
                 exponentiated[k,k] = t11.exponentiation()
                 exponentiated[k,k+1] = x12
@@ -259,20 +261,20 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
                 let c = matrix[k+1, k]
                 let d = matrix[k+1, k+1]
                 
-                let ave = (a + d) / two
-                let df = (a - d) / two
+                let avg = (a+d)/two
+                let df = (a-d)/two
                 
                 let μ = two * two * (df * df + b * c)
-                let delta = μ.squareRoot() / two
-                let expad2 = ave.exponentiation()
-                let coshdelta = ( delta.exponentiation() + (-delta).exponentiation() ) / two
+                let delta = μ.squareRoot()/two
+                
+                let expad2 = avg.exponentiation()
+                let coshdelta = MatrixExp.cosh(delta)
                 let sinchdelta = sinch(delta)
                 
                 exponentiated[k,k] = expad2 * ( coshdelta + df * sinchdelta)
                 exponentiated[k,k+1] = expad2 * b * sinchdelta
                 exponentiated[k+1,k] = expad2 * c * sinchdelta
                 exponentiated[k+1, k+1] = expad2 * ( coshdelta - df * sinchdelta)
-                
             default:
                 continue
             }
