@@ -8,6 +8,7 @@
 import Numerics
 import LANumerics
 
+@available(*, deprecated)
 class NormOfMatrixPower {
     let M: Matrix<Double>
     let power: Int
