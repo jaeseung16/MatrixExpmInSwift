@@ -111,7 +111,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             }
             
             let oldS = S
-            S = OneNormEstimator.mysign(A: Y)
+            S = Y.mysign()
             
             if T.self is any Real {
                 let SS = oldS.transpose * S
@@ -245,21 +245,12 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             
             let B1 = 2.0 * OneNormEstimator.randomMatrix(rows: nRowsX, columns: nColumnsX - 1)
             let B2 = Matrix<T>(repeating: 1.0, rows: nRowsX, columns: nColumnsX - 1)
-            tempX[0..<nRowsX, 1..<nColumnsX] = OneNormEstimator.mysign(A: B1 - B2)
+            tempX[0..<nRowsX, 1..<nColumnsX] = (B1 - B2).mysign()
             
             (tempX, _) = OneNormEstimator.undupli(S: tempX, oldS: Matrix<T>(), toPrint: false)
             
             return tempX.map { $0 / T(exactly: nRowsX)! }
         }
-    }
-    
-    static private func mysign(A: Matrix<T>) -> Matrix<T> {
-        // MATLAB implementation
-        // SIGN(X) = X ./ ABS(X). -> 1 if greater than zero, 0 if equalt to zero, -1 if less than zero
-        // S = sign(A); S(S==0) = 1;
-        // In any case, we can't divide by 0
-        let S = A.map { $0 == 0.0 ? 1.0 : ($0 / T(floatLiteral: $0.length as! T.FloatLiteralType))}
-        return S
     }
     
     static func undupli(S: Matrix<T>, oldS: Matrix<T>, toPrint: Bool) -> (Matrix<T>, Int) {
@@ -294,7 +285,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
                 
                 let A = 2.0 * OneNormEstimator.randomMatrix(rows: nRows, columns: 1)
                 let B = Matrix<T>(repeating: 1.0, rows: nRows, columns: 1)
-                Sout[0..<nRows, col..<(col+1)] = OneNormEstimator.mysign(A: A-B)
+                Sout[0..<nRows, col..<(col+1)] = (A-B).mysign()
                 if (rpt > Int(Float(nRows)/Float(nColumns))) {
                     break
                 }
@@ -362,6 +353,15 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
 extension Matrix where Element: Exponentiable {
     func absElementWise() -> Matrix<Element.Magnitude> {
         return map { $0.length }
+    }
+    
+    func mysign() -> Matrix<Element> {
+        // MATLAB implementation
+        // SIGN(X) = X ./ ABS(X). -> 1 if greater than zero, 0 if equalt to zero, -1 if less than zero
+        // S = sign(A); S(S==0) = 1;
+        // In any case, we can't divide by 0
+        // x./abs(x) if x is complex.
+        return map { $0 == 0.0 ? 1.0 : ($0 / Element(floatLiteral: $0.length as! Element.FloatLiteralType))}
     }
 }
 
