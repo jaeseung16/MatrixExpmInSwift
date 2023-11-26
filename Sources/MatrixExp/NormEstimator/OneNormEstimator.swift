@@ -74,11 +74,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             nmv += 1
             
             let absY = Y.absElementWise()
-            //Y.map { Double(floatLiteral: $0.length as! Double) }
-            
-            let sortedVals = OneNormEstimator.summationAlongRow(absY)
-                .enumerated()
-                .sorted(by: {$0.element > $1.element})
+            let sortedVals = OneNormEstimator.summationAlongRow(absY).enumeratedSorted()
             let vals = sortedVals.map { $0.element }
             let m = sortedVals.map { $0.offset }
             
@@ -155,7 +151,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
                 }
             }
             
-            let sortedZVals = Zvals.enumerated().sorted(by: {$0.element > $1.element})
+            let sortedZVals = Zvals.enumeratedSorted()
             let m2 = sortedZVals.map { $0.offset }
             var imax = self.t
             if (it == 1) {
@@ -225,9 +221,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
     }
     
     func computeExactly(_ M: Matrix<T>) {
-        let vals = OneNormEstimator.summationAlongRow(M.absElementWise())
-            .enumerated()
-            .sorted(by: {$0.element > $1.element})
+        let vals = OneNormEstimator.summationAlongRow(M.absElementWise()).enumeratedSorted()
         
         let elements = vals.map { $0.element }
         estimate = elements[0]
@@ -368,5 +362,11 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
 extension Matrix where Element: Exponentiable {
     func absElementWise() -> Matrix<Element.Magnitude> {
         return map { $0.length }
+    }
+}
+
+extension Array where Element: Real {
+    func enumeratedSorted() -> [EnumeratedSequence<Array>.Element] {
+        return self.enumerated().sorted(by: {$0.element > $1.element})
     }
 }
