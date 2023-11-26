@@ -19,10 +19,10 @@ class MatrixPowerOneNormEstimator<T>: OneNormEstimator<T> where T: Exponentiable
     
     override func compute() {
         if dimension < 50 {
-            estimate = multiply(by: Matrix<T>.eye(dimension)).manhattanNorm as! Double
+            estimate = multiply(by: Matrix<T>.eye(dimension)).manhattanNorm
         } else if isNonNegative(A) {
             let e = Matrix<T>(Vector<T>(repeating: 1.0, count: dimension))
-            estimate = conjugateTransposeAndMultiply(by: e).infNorm as! Double
+            estimate = conjugateTransposeAndMultiply(by: e).infNorm
         } else {
             super.compute()
         }

@@ -22,7 +22,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
     let itmax = 5
     
     // MARK: - Properties, Results
-    var estimate: Double = 0.0
+    var estimate: T.Magnitude = 0.0
     var V = Vector<T>()
     var W = Vector<T>()
     var numberOfIterations: Int = 0
@@ -61,20 +61,20 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
         var ind_hist = [Int](repeating: 0, count: self.t)
         var S = Matrix<T>(rows: n, columns: self.t)
         
-        var est_old = 0.0
+        var est_old = T.Magnitude.zero
         var est_j = 0
         var info = NormEst1TerminationReason.notApplicable
         
-        var est = 0.0
+        var est = T.Magnitude.zero
         var Y: Matrix<T>
         while (true) {
             it += 1
  
             Y = multiply(by: X)
-            
             nmv += 1
             
-            let absY = Y.map { Double(floatLiteral: $0.length as! Double) }
+            let absY = Y.absElementWise()
+            //Y.map { Double(floatLiteral: $0.length as! Double) }
             
             let sortedVals = OneNormEstimator.summationAlongRow(absY)
                 .enumerated()
@@ -117,18 +117,17 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             let oldS = S
             S = OneNormEstimator.mysign(A: Y)
             
-            // For Double
-            if (T(floatLiteral: 0.0 as! T.FloatLiteralType) is Double) {
+            if T.self is any Real {
                 let SS = oldS.transpose * S
-                let absSS = SS.map { $0.length as! Double }
-                var maxVector = Vector<Double>()
+                let absSS = SS.absElementWise()
+                var maxVector = Vector<T.Magnitude>()
                 for k in 0..<self.t {
                     let maxValue = absSS[0..<self.t, k..<(k+1)].reduce { max($0, $1) }
-                    maxVector.append(maxValue == Double(n) ? 1 : 0)
+                    maxVector.append(maxValue == T.Magnitude(n) ? 1 : 0)
                 }
                 let np = maxVector.reduce(0, +)
                 
-                if (np == Double(self.t)) {
+                if (np == T.Magnitude(self.t)) {
                     info = .repeatedSignMatrix
                     break
                 }
@@ -139,18 +138,17 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             }
 
             let Z = conjugateTransposeAndMultiply(by: S)
-
             nmv += 1
         
-            let absZ = Z.map { $0.length as! Double }
-            var Zvals = Vector<Double>()
+            let absZ = Z.absElementWise()
+            var Zvals = Vector<T.Magnitude>()
             for k in 0..<self.n {
-                let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * Double.greatestFiniteMagnitude, {x, y in max(x,y)})
+                let maxValue = absZ[k..<(k+1), 0..<self.t].reduce(-1.0 * T.Magnitude.greatestFiniteMagnitude, {x, y in max(x,y)})
                 Zvals.append(maxValue)
             }
             
             if (it >= 2) {
-                let maxZvals = Zvals.reduce(Double.greatestFiniteMagnitude, {x, y in max(x,y)})
+                let maxZvals = Zvals.reduce(T.Magnitude.greatestFiniteMagnitude, {x, y in max(x,y)})
                 if (maxZvals == Zvals[est_j]) {
                     info = .powerMethodConvergenceTest
                     break
@@ -227,9 +225,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
     }
     
     func computeExactly(_ M: Matrix<T>) {
-        let absM = M.map { Double(floatLiteral: $0.length as! Double) }
-        
-        let vals = OneNormEstimator.summationAlongRow(absM)
+        let vals = OneNormEstimator.summationAlongRow(M.absElementWise())
             .enumerated()
             .sorted(by: {$0.element > $1.element})
         
@@ -324,10 +320,10 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
         return (Sout, r)
     }
     
-    static func summationAlongRow(_ matrix: Matrix<Double>) -> Vector<Double> {
-        var vals = Vector<Double>()
+    static func summationAlongRow(_ matrix: Matrix<T.Magnitude>) -> Vector<T.Magnitude> {
+        var vals = Vector<T.Magnitude>()
         for k in 0..<matrix.columns {
-            var summation = 0.0
+            var summation = T.Magnitude.zero
             for l in 0..<matrix.rows {
                 summation += matrix[l, k]
             }
@@ -338,9 +334,9 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
     
     static func isMaxN(S: Matrix<T>, W: Matrix<T>, n: Int, lastColumn: Int) -> Bool {
         let temp = S.transpose * W[0..<n, 0..<lastColumn]
-        let absTemp = temp.map { $0.length as! Double}
-        let maxElement = absTemp.reduce(-1.0 * Double.greatestFiniteMagnitude, { max($0, $1) })
-        return maxElement == Double(n)
+        let absTemp = temp.absElementWise()
+        let maxElement = absTemp.reduce(-1.0 * T.Magnitude.greatestFiniteMagnitude, { max($0, $1) })
+        return maxElement == T.Magnitude(n)
     }
     
     static func randomMatrix(rows: Int, columns: Int) -> Matrix<T> {
@@ -369,3 +365,8 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
     }
 }
 
+extension Matrix where Element: Exponentiable {
+    func absElementWise() -> Matrix<Element.Magnitude> {
+        return map { $0.length }
+    }
+}
