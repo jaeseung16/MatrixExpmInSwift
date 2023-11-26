@@ -126,7 +126,7 @@ final class MatrixExpTests: XCTestCase {
         XCTAssertEqual(expected, result)
     }
     
-    func testNormEst1() {
+    func testOneNormEstimator() {
         let 𝛼 = 1.0 - 1e-6
         let rows = 100
         
@@ -140,14 +140,14 @@ final class MatrixExpTests: XCTestCase {
         
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
-        let oneNormEstimator = OneNormEstimator(A: M, t: t, X0: getX0ForTestNormEst1(), toPrint: true)
+        let oneNormEstimator = OneNormEstimator(A: M, t: t, X0: getX0ForTestOneNormEstimator(), toPrint: true)
         oneNormEstimator.compute()
         let result = oneNormEstimator.estimate // 99.99505016169591
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
     
-    private func getX0ForTestNormEst1() -> Matrix<Double> {
+    private func getX0ForTestOneNormEstimator() -> Matrix<Double> {
         return Matrix<Double>(rows: [[0.01, -0.01,  0.01,  0.01,  0.01,  0.01],
                                      [0.01,  0.01, -0.01, -0.01,  0.01, -0.01],
                                      [0.01, -0.01,  0.01,  0.01, -0.01, -0.01],
@@ -251,7 +251,7 @@ final class MatrixExpTests: XCTestCase {
                                     ])
     }
     
-    func testNormEst1Complex() {
+    func testOneNormEstimatorComplex() {
         let 𝛼 = 1.0 - 1e-6
         let rows = 100
         
@@ -266,7 +266,7 @@ final class MatrixExpTests: XCTestCase {
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
         
-        let X0 = getX0ForTestNormEst1().map { Complex<Double>($0) }
+        let X0 = getX0ForTestOneNormEstimator().map { Complex<Double>($0) }
         let oneNormEstimator = OneNormEstimator(A: M, t: t, X0: X0, toPrint: true)
         oneNormEstimator.compute()
         let result = oneNormEstimator.estimate // 99.99505016169591
@@ -345,8 +345,8 @@ final class MatrixExpTests: XCTestCase {
         ("testEvaluate4", testEvaluate4),
         ("testEvaluateComplex", testEvaluateComplex),
         ("testQuasiTrianglularStructure", testQuasiTrianglularStructure),
-        ("testNormEst1", testNormEst1),
-        ("testNormEst1Complex", testNormEst1Complex),
+        ("testOneNormEstimator", testOneNormEstimator),
+        ("testOneNormEstimatorComplex", testOneNormEstimatorComplex),
         ("testNormEst1Complex2", testNormEst1Complex2),
         ("testNormEst1Complex3", testNormEst1Complex3),
         ("testNormEst1Undupli", testNormEst1Undupli)
