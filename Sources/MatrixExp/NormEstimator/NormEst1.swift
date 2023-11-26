@@ -9,6 +9,7 @@ import Foundation
 import Numerics
 import LANumerics
 
+@available(*, deprecated)
 class NormEst1<T> where T: Exponentiable, T.Magnitude: Real {
     
     // MARK: - Properties, Inputs
