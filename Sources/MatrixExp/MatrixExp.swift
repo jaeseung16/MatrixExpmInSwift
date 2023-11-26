@@ -225,7 +225,9 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     static func ell(_ matrix: Matrix<T>, coeff: Double, order: Int) -> Double {
         let factor = pow(coeff, 1.0 / Double(2 * order + 1))
         let scaledMatrix = matrix.map { ($0.length as! Double) * factor}
-        let alpha = NormOfMatrixPower(scaledMatrix, power: (2 * order + 1)).estimatedNorm / (matrix.manhattanNorm as! Double)
+        let oneNormEstimator = MatrixPowerOneNormEstimator(A: scaledMatrix, order: (2 * order + 1))
+        oneNormEstimator.compute()
+        let alpha = oneNormEstimator.estimate / (matrix.manhattanNorm as! Double)
         let u = pow(2.0, -52.0)
         return max(ceil(log2(2.0 * alpha / u) / Double(2 * order)), 0.0)
     }
