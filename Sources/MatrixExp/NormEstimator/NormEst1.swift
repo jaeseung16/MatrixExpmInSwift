@@ -278,7 +278,7 @@ class NormEst1<T> where T: Exponentiable, T.Magnitude: Real {
         return Xtemp.map { $0 / T(exactly: rows)! }
     }
     
-    static private func mysign(A: Matrix<T>) -> Matrix<T> {
+    private static func mysign(A: Matrix<T>) -> Matrix<T> {
         // MATLAB implementation
         // SIGN(X) = X ./ ABS(X). -> 1 if greater than zero, 0 if equalt to zero, -1 if less than zero
         // S = sign(A); S(S==0) = 1;

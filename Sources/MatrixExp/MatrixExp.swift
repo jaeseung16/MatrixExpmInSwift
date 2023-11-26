@@ -43,7 +43,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     private static func exp(hermitianMatrix: Matrix<T>) -> Matrix<T> {
         let (_, schurForm, schurVectors) = hermitianMatrix.schur()!
-
+        
         let range = 0..<schurForm.columns
         let diagonal = range.map { schurForm[$0,$0].exponentiation() }
         let expSchurForm = Matrix<T>(rows: schurForm.rows, columns: schurForm.columns, diagonal: diagonal)
@@ -59,12 +59,12 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         let (scaling, order, matrixPowers) = expmParams(for: matrix)
         
-        let factor = scaling > 0 ? convertToType(floatLiteral: pow(2.0, Double(scaling))) : one
+        let factor = scaling > 0 ? powerOf2(scaling: scaling) : one
         var scaledMatrix = scaling > 0 ? matrix.map { $0 / factor } : matrix
         
         let scaledMatrixPowers = (0..<matrixPowers.count).map { power in
             if scaling > 0 {
-                let factor = convertToType(floatLiteral: pow(2.0, Double((power+1) * scaling)))
+                let factor = powerOf2(scaling: (power+1) * scaling)
                 return matrixPowers[power].map { $0 / factor }
             } else {
                 return matrixPowers[power]
@@ -122,9 +122,9 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         var scaling = 0
         
-        let d4 = pow(evenPowers[1].manhattanNorm as! Double, 1.0/4.0)
-        let d6 = pow(evenPowers[2].manhattanNorm as! Double, 1.0/6.0)
-        let η1 = max(d4, d6)
+        let d4 = T.Magnitude.pow(evenPowers[1].manhattanNorm, 1.0/4.0)
+        let d6 = T.Magnitude.pow(evenPowers[2].manhattanNorm, 1.0/6.0)
+        let η1 = T.Magnitude.maximum(d4, d6)
         
         if (η1 <= MatrixExpConst<T>.theta(for: .three)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
             return (scaling, .three, evenPowers)
@@ -133,15 +133,16 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             return (scaling, .five, evenPowers)
         }
         
-        var d8: Double
+        var d8: T.Magnitude
         if (isSmall) {
-            d8 = pow((evenPowers[1] * evenPowers[1]).manhattanNorm as! Double, 1.0/8.0)
+            d8 = T.Magnitude.pow((evenPowers[1] * evenPowers[1]).manhattanNorm, 1.0/8.0)
         } else {
-            let normest = NormEst1<T>(A: evenPowers[3], order: 2)
-            d8 = pow(normest.estimate, 1.0/8.0)
+            let normest = MatrixPowerOneNormEstimator(A: evenPowers[3], order: 2)
+            normest.compute()
+            d8 = T.Magnitude.pow(normest.estimate, 1.0/8.0)
         }
         
-        let η3 = max(d6, d8)
+        let η3 = T.Magnitude.maximum(d6, d8)
         if (η3 <= MatrixExpConst<T>.theta(for: .seven)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
             return (scaling, .seven, evenPowers)
         }
@@ -149,31 +150,37 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
             return (scaling, .nine, evenPowers)
         }
         
-        var d10: Double
+        var d10: T.Magnitude
         if (isSmall) {
-            d10 = pow((evenPowers[1] * evenPowers[1]).manhattanNorm as! Double, 1.0/10.0)
+            d10 = T.Magnitude.pow((evenPowers[1] * evenPowers[1]).manhattanNorm, 1.0/10.0)
         } else {
-            let normest = NormEst1<T>(A: evenPowers[0], order: 5)
-            d10 = pow(normest.estimate, 1.0/10.0)
+            let normest = MatrixPowerOneNormEstimator(A: evenPowers[0], order: 5)
+            normest.compute()
+            d10 = T.Magnitude.pow(normest.estimate, 1.0/10.0)
         }
-
-        let η4 = max(d8, d10)
-        let η5 = min(η3, η4)
-        scaling = Int(max( ceil(log2( η5 / MatrixExpConst<T>.theta(for: .thirteen)! )), 0))
         
-        let factor = convertToType(floatLiteral: pow(2.0, Double(scaling)))
+        let η4 = T.Magnitude.maximum(d8, d10)
+        let η5 = T.Magnitude.minimum(η3, η4)
+        scaling = getScaling(η4: η4, η5: η5)
+        
+        let factor = powerOf2(scaling: scaling)
         let scaledM = M.map { $0 / factor }
         let sFromEll = ell(scaledM, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[4], order: 5)
         
-        scaling = sFromEll.isNaN ? revertToOldEstimate(M) : scaling + Int(sFromEll)
-
+        scaling = sFromEll.isNaN ? revertToOldEstimate(M) : scaling + sFromEll.toInt
+        
         return (scaling, .thirteen, evenPowers)
     }
     
+    private static func getScaling(η4: T.Magnitude, η5: T.Magnitude) -> Int {
+        let temp = ceil( T.Magnitude.log2( η5 / MatrixExpConst<T>.theta(for: .thirteen)! ) ).toInt
+        return Int(max(temp, 0))
+    }
+    
     private static func revertToOldEstimate(_ matrix: Matrix<T>) -> Int {
-        let twoToThePowerOfScaling = (matrix.manhattanNorm as! Double) / MatrixExpConst<T>.theta(for: .thirteen)!
-        let t = log2(twoToThePowerOfScaling.significand)
-        return twoToThePowerOfScaling.exponent - (t == 0.5 ? 1 : 0)
+        let twoToThePowerOfScaling = matrix.manhattanNorm / MatrixExpConst<T>.theta(for: .thirteen)!
+        let t = T.Magnitude.log2(twoToThePowerOfScaling.significand)
+        return Int(twoToThePowerOfScaling.exponent) - (t == 0.5 ? 1 : 0)
     }
     
     static func padeApprox(for M: Matrix<T>, evenPowersOfM: [Matrix<T>], order: PadeApproximantOrder) -> Matrix<T>? {
@@ -222,14 +229,14 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         return solve + I
     }
     
-    static func ell(_ matrix: Matrix<T>, coeff: Double, order: Int) -> Double {
-        let factor = pow(coeff, 1.0 / Double(2 * order + 1))
-        let scaledMatrix = matrix.map { ($0.length as! Double) * factor}
+    static func ell(_ matrix: Matrix<T>, coeff: T.Magnitude, order: Int) -> T.Magnitude {
+        let factor = T.Magnitude.pow(coeff, 1.0 / T.Magnitude(magnitude: T.Magnitude(2 * order + 1)))
+        let scaledMatrix = matrix.map { T(magnitude: $0.length * factor)  }
         let oneNormEstimator = MatrixPowerOneNormEstimator(A: scaledMatrix, order: (2 * order + 1))
         oneNormEstimator.compute()
-        let alpha = oneNormEstimator.estimate / (matrix.manhattanNorm as! Double)
-        let u = pow(2.0, -52.0)
-        return max(ceil(log2(2.0 * alpha / u) / Double(2 * order)), 0.0)
+        let alpha = oneNormEstimator.estimate / matrix.manhattanNorm
+        let u = T.Magnitude.pow(2.0, -52.0)
+        return T.Magnitude.maximum(ceil( T.Magnitude.log2(2.0 * alpha / u)/T.Magnitude(2 * order) ), 0.0)
     }
     
     static func recomputeBlockDiag(_ matrix: Matrix<T>, exponentiated: inout Matrix<T>, structure: [Int]) {
@@ -280,16 +287,16 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         }
     }
     
-    static func convertToType(floatLiteral: Double) -> T {
-        return T(floatLiteral: floatLiteral as! T.FloatLiteralType)
-    }
-    
     private static var one: T {
-        T(floatLiteral: 1.0 as! T.FloatLiteralType)
+        T(magnitude: 1.0)
     }
     
     private static var two: T {
-        T(floatLiteral: 2.0 as! T.FloatLiteralType)
+        T(magnitude: 2.0)
+    }
+    
+    private static func powerOf2(scaling: Int) -> T {
+        return T(magnitude: T.Magnitude.pow(2.0, T.Magnitude(scaling)))
     }
 }
 

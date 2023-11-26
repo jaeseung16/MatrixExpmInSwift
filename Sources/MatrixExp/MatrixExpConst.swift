@@ -5,6 +5,7 @@
 //  Created by Jae Seung Lee on 10/11/20.
 //
 
+import Numerics
 import LANumerics
 
 public enum PadeApproximantOrder: Int {
@@ -15,7 +16,7 @@ public enum PadeApproximantOrder: Int {
     case thirteen = 13
 }
 
-struct MatrixExpConst<T> where T: Exponentiable {
+struct MatrixExpConst<T> where T: Exponentiable, T.Magnitude: Real {
     static func padeCoefficients(_ order: PadeApproximantOrder) -> Vector<T> {
         var padeCoefficients: Vector<T>
         
@@ -40,7 +41,7 @@ struct MatrixExpConst<T> where T: Exponentiable {
         return padeCoefficients
     }
     
-    static var coefficientsOfBackwardsErrorFunction : Vector<Double> {
+    static var coefficientsOfBackwardsErrorFunction : Vector<T.Magnitude> {
         return [1.0/100800.0,
                 1.0/10059033600.0,
                 1.0/4487938430976000.0,
@@ -48,8 +49,8 @@ struct MatrixExpConst<T> where T: Exponentiable {
                 1.0/113250775606021113483283660800000000.0]
     }
     
-    static func theta(for order: PadeApproximantOrder) -> Double? {
-        var theta: Double?
+    static func theta(for order: PadeApproximantOrder) -> T.Magnitude? {
+        var theta: T.Magnitude?
         
         switch (order) {
         case .three:

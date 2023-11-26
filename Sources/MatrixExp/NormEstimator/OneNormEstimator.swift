@@ -361,7 +361,7 @@ extension Matrix where Element: Exponentiable {
         // S = sign(A); S(S==0) = 1;
         // In any case, we can't divide by 0
         // x./abs(x) if x is complex.
-        return map { $0 == 0.0 ? 1.0 : ($0 / Element(floatLiteral: $0.length as! Element.FloatLiteralType))}
+        return map { $0 == 0.0 ? 1.0 : ($0/Element(magnitude: $0.length)) }
     }
 }
 
