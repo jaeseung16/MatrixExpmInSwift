@@ -17,7 +17,7 @@ final class MatrixExpTests: XCTestCase {
     func testDiag() {
         let diag = Vector<Double>([1.0, 0.5, 0.0, -1.0])
         let diagMatrix = Matrix(diagonal: diag)
-        let result = MatrixExp(diagMatrix).result!
+        let result = MatrixExponentiator(diagMatrix).compute()!
         let expected = Matrix(diagonal: diag.map { exp($0) })
         
         for k in 0..<expected.elements.count {
@@ -46,7 +46,7 @@ final class MatrixExpTests: XCTestCase {
         let order = PadeApproximantOrder.nine
         let scaling = 0
         
-        let (s, o, _) = MatrixExp.expmParams(for: M)
+        let (s, o, _) = MatrixExponentiator.getExpmParams(from: M)
 
         XCTAssertEqual(scaling, s)
         XCTAssertEqual(order, o)
@@ -55,7 +55,7 @@ final class MatrixExpTests: XCTestCase {
     func testEvaluate() {
         let M = Matrix<Double>(rows: [[0, 1], [1, 0]])
         let expected = Matrix<Double>(rows: [[1.5430806348152437, 1.1752011936438014], [1.1752011936438014, 1.5430806348152437]])
-        let result = MatrixExp(M).result!
+        let result = MatrixExponentiator(M).compute()!
         
         for k in 0..<expected.elements.count {
             XCTAssertEqual(expected[k], result[k], accuracy: Double.ulpOfOne)
@@ -65,7 +65,7 @@ final class MatrixExpTests: XCTestCase {
     func testEvaluate2() {
         let M = Matrix<Double>(rows: [[0, 1.0 / 1024.0], [1.0 / 2048.0, 0]])
         let expected = Matrix<Double>(rows: [[1.0000002384185886, 0.0009765625776102275], [0.0004882812888051137, 1.0000002384185886]])
-        let result = MatrixExp(M).result!
+        let result = MatrixExponentiator(M).compute()!
         
         for k in 0..<expected.elements.count {
             XCTAssertEqual(expected[k], result[k], accuracy: Double.ulpOfOne)
@@ -74,8 +74,8 @@ final class MatrixExpTests: XCTestCase {
     
     func testEvaluate3() {
         let M = Matrix<Double>(rows: [[0.0, 8.0], [16.0, 0.0]])
-        let expected = Matrix<Double>(rows: [[40968.60491465862, 28969.178342277763], [57938.356684555525, 40968.60491465862]])
-        let result = MatrixExp(M).result!
+        let expected = Matrix<Double>(rows: [[40968.60491465862, 28969.178342277766], [57938.35668455553, 40968.60491465862]])
+        let result = MatrixExponentiator(M).compute()!
         
         for k in 0..<expected.elements.count {
             XCTAssertEqual(expected[k], result[k], accuracy: Double.ulpOfOne)
@@ -85,7 +85,7 @@ final class MatrixExpTests: XCTestCase {
     func testEvaluate4() {
         let M = Matrix<Double>(rows: [[1.0, 10000.0], [0.0, -1.0]])
         let expected = Matrix<Double>(rows: [[exp(1.0), 5000.0 * (exp(1.0) - exp(-1.0))], [0.0, exp(-1.0)]])
-        let result = MatrixExp(M).result!
+        let result = MatrixExponentiator(M).compute()!
         
         for k in 0..<expected.elements.count {
             XCTAssertEqual(expected[k], result[k], accuracy: Double.ulpOfOne)
@@ -97,7 +97,7 @@ final class MatrixExpTests: XCTestCase {
                                                [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
         let expected = Matrix<Complex<Double>>(rows: [[Complex<Double>(1.5430806348152422, 0), Complex<Double>(0, -1.1752011936438003)],
                                                       [Complex<Double>(0, 1.1752011936438003), Complex<Double>(1.543080634815243, 0)]])
-        let result = MatrixExp(M).result!
+        let result = MatrixExponentiator(M).compute()!
         
         for k in 0..<expected.elements.count {
             XCTAssertEqual(expected[k].real, result[k].real, accuracy: Double.ulpOfOne)
@@ -109,7 +109,7 @@ final class MatrixExpTests: XCTestCase {
         let M = Matrix<Complex<Double>>(rows: [[Complex<Double>(0,0), Complex<Double>(0, -1)],
                                                [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
         let expected = 10.0
-        let result = MatrixExp.ell(M, coeff: 1.0/100800.0, order: 2)
+        let result = MatrixExponentiator.ell(M, coeff: 1.0/100800.0, order: 2)
         
         XCTAssertEqual(expected, result)
     }
@@ -141,8 +141,7 @@ final class MatrixExpTests: XCTestCase {
         let t = 6 // Use a negative value to print out more information
         let expected = 99.995050161695914
         let oneNormEstimator = OneNormEstimator(A: M, t: t, X0: getX0ForTestOneNormEstimator(), toPrint: true)
-        oneNormEstimator.compute()
-        let result = oneNormEstimator.estimate // 99.99505016169591
+        let result = oneNormEstimator.compute() // 99.99505016169591
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
@@ -268,8 +267,7 @@ final class MatrixExpTests: XCTestCase {
         
         let X0 = getX0ForTestOneNormEstimator().map { Complex<Double>($0) }
         let oneNormEstimator = OneNormEstimator(A: M, t: t, X0: X0, toPrint: true)
-        oneNormEstimator.compute()
-        let result = oneNormEstimator.estimate // 99.99505016169591
+        let result = oneNormEstimator.compute() // 99.99505016169591
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
@@ -282,8 +280,7 @@ final class MatrixExpTests: XCTestCase {
         
         let expected = 1.414213562373095
         let oneNormEstimator = OneNormEstimator(A: M, toPrint: true)
-        oneNormEstimator.compute()
-        let result = oneNormEstimator.estimate // 1.4142135623730951
+        let result = oneNormEstimator.compute() // 1.4142135623730951
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }
@@ -300,8 +297,7 @@ final class MatrixExpTests: XCTestCase {
         
         let expected = 1.414213562373095
         let oneNormEstimator = OneNormEstimator(A: M, toPrint: true)
-        oneNormEstimator.compute()
-        let result = oneNormEstimator.estimate // 1.4142135623730951
+        let result = oneNormEstimator.compute() // 1.4142135623730951
         
         XCTAssertEqual(expected, result, accuracy: Double.ulpOfOne)
     }

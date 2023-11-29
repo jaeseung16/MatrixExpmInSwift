@@ -40,7 +40,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
         self.X = initializeX(X0: X0)
     }
     
-    func compute() {
+    func compute() -> T.Magnitude {
         if t == A.rows || A.rows <= 4 {
             // compute exactly
             computeExactly()
@@ -48,6 +48,7 @@ class OneNormEstimator<T>: OneNormMatrixEvaluator where T: Exponentiable, T.Magn
             // estimate
             estimateByIteration()
         }
+        return estimate
     }
     
     func estimateByIteration() {
