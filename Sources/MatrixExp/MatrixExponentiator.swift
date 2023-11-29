@@ -9,7 +9,7 @@ import Foundation
 import Numerics
 import LANumerics
 
-class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions, T.Magnitude: Real {
+public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions, T.Magnitude: Real {
     public let matrix: Matrix<T>
     public var result: Matrix<T>?
     public var scaling: Int = 0
