@@ -1,5 +1,5 @@
 # MatrixExp
-![](https://img.shields.io/badge/version-0.2.4-blue)
+![](https://img.shields.io/badge/version-0.3.0-blue)
 ![](https://img.shields.io/badge/license-MIT-green)
 ![](https://img.shields.io/badge/last%20updated-October%202020-orange)
 
@@ -21,18 +21,22 @@ MatrixExp is a Swift package for numerically evaluating matrix exponentiation.
 
 ### Usage
 
-Initialize a matrix using LANumerics' `Matrix<Element>` and call `MatrixExp<Element>.evaluate(for:)`.
-The result can be `Matrix<Element>` or `nil`.
+Initialize a matrix using LANumerics' `Matrix<Element>` and instantiate an instance of `MatrixExponentiator<Element>`. Then, call compute() to get the result, which is either `Matrix<Element>` or `nil`.
 
 ```swift
 let M1 = Matrix<Double>(rows: [[0, 1], [1, 0]])
-let result = MatrixExp<Double>(M1).result
+let result = MatrixExponentiator<Double>(M1).compute()
 
 let M2 = Matrix<Complex<Double>>(rows: [[Complex<Double>(0,0), Complex<Double>(0, -1)], [Complex<Double>(0, 1), Complex<Double>(0, 0)]])
-let result = MatrixExp<Complex>(M2).result
+let result = MatrixExponentiator<Complex>(M2).compute()
 ```
 
 ### Update History
+
+#### Version 0.3.0 (11/29/2023)
+
+- Update LANumerics to 0.1.12 and swift-numerics to 0.1.0
+- Update the interface and usage
 
 #### Version 0.2.0 (12/10/2020)
 
