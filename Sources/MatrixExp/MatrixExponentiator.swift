@@ -40,14 +40,14 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
     
     private func expDiag() -> Matrix<T> {
         let range = 0..<matrix.columns
-        let diag = range.map { matrix[$0,$0].exponentiation() }
+        let diag = range.map { T.exp(matrix[$0,$0]) }
         return Matrix<T>(rows: matrix.rows, columns: matrix.columns, diagonal: diag)
     }
     
     private func expHermitian() -> Matrix<T> {
         let (_, schurForm, schurVectors) = matrix.schur()!
         let range = 0..<schurForm.columns
-        let diag = range.map { schurForm[$0,$0].exponentiation() }
+        let diag = range.map { T.exp(schurForm[$0,$0]) }
         let expSchurForm = Matrix<T>(rows: schurForm.rows, columns: schurForm.columns, diagonal: diag)
         return schurVectors * expSchurForm * schurVectors.adjoint
     }
@@ -57,11 +57,11 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
         
         let (scaling, order, matrixPowers) = MatrixExponentiator<T>.getExpmParams(from: matrix)
         
-        let factor = scaling > 0 ? MatrixExponentiator<T>.raiseTwo(to: scaling) : MatrixExponentiator<T>.one
+        let factor = scaling > 0 ? T.raiseTwo(to: scaling) : T.one
         var scaledMatrix = scaling > 0 ? matrix.map { $0 / factor } : matrix
         let scaledMatrixPowers = (0..<matrixPowers.count).map { power in
             if scaling > 0 {
-                let factor = MatrixExponentiator<T>.raiseTwo(to: (power+1) * scaling)
+                let factor = T.raiseTwo(to: (power+1) * scaling)
                 return matrixPowers[power].map { $0 / factor }
             } else {
                 return matrixPowers[power]
@@ -88,11 +88,7 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
         
         return (result, scaling, order)
     }
-    
-    static func sinch(_ x: T) -> T {
-        return x == T.zero ? one : T.sinh(x) / x
-    }
-    
+
     static func getExpmParams(from M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
         let isSmall = M.rows < 150
         
@@ -107,9 +103,9 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
         
         var scaling = 0
         
-        let d4 = raise(evenPowers[1].manhattanNorm, to: 1.0/4.0)
-        let d6 = raise(evenPowers[2].manhattanNorm, to: 1.0/6.0)
-        let η1 = greater(of: d4, and: d6)
+        let d4 = T.raise(evenPowers[1].manhattanNorm, to: 1.0/4.0)
+        let d6 = T.raise(evenPowers[2].manhattanNorm, to: 1.0/6.0)
+        let η1 = T.greater(of: d4, and: d6)
         
         if (η1 <= MatrixExpConst<T>.theta(for: .three)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[0], order: 3) == 0.0) {
             return (scaling, .three, evenPowers)
@@ -118,9 +114,9 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
             return (scaling, .five, evenPowers)
         }
         
-        let d8 = isSmall ? raise((evenPowers[1] * evenPowers[1]).manhattanNorm, to: 1.0/8.0) : raise(MatrixPowerOneNormEstimator(A: evenPowers[3], order: 2).compute(), to: 1.0/8.0)
+        let d8 = isSmall ? T.raise((evenPowers[1] * evenPowers[1]).manhattanNorm, to: 1.0/8.0) : T.raise(MatrixPowerOneNormEstimator(A: evenPowers[3], order: 2).compute(), to: 1.0/8.0)
         
-        let η3 = greater(of: d6, and: d8)
+        let η3 = T.greater(of: d6, and: d8)
         if (η3 <= MatrixExpConst<T>.theta(for: .seven)! && ell(M, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[2], order: 7) == 0.0) {
             return (scaling, .seven, evenPowers)
         }
@@ -128,27 +124,19 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
             return (scaling, .nine, evenPowers)
         }
         
-        let d10 = isSmall ? raise((evenPowers[1] * evenPowers[1]).manhattanNorm, to: 1.0/10.0) : raise(MatrixPowerOneNormEstimator(A: evenPowers[0], order: 5).compute(), to: 1.0/10.0)
+        let d10 = isSmall ? T.raise((evenPowers[1] * evenPowers[1]).manhattanNorm, to: 1.0/10.0) : T.raise(MatrixPowerOneNormEstimator(A: evenPowers[0], order: 5).compute(), to: 1.0/10.0)
         
-        let η4 = greater(of: d8, and: d10)
-        let η5 = greater(of: η3, and: η4)
+        let η4 = T.greater(of: d8, and: d10)
+        let η5 = T.greater(of: η3, and: η4)
         scaling = getScaling(η4: η4, η5: η5)
         
-        let factor = raiseTwo(to: scaling)
+        let factor = T.raiseTwo(to: scaling)
         let scaledM = M.map { $0 / factor }
         let sFromEll = ell(scaledM, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[4], order: 13)
         
         scaling = sFromEll.isNaN ? revertToOldEstimate(M) : scaling + sFromEll.toInt
         
         return (scaling, .thirteen, evenPowers)
-    }
-    
-    private static func raise(_ a: T.Magnitude, to b: T.Magnitude) -> T.Magnitude {
-        return T.Magnitude.pow(a, b)
-    }
-    
-    private static func greater(of a: T.Magnitude, and b: T.Magnitude) -> T.Magnitude {
-        return T.Magnitude.maximum(a, b)
     }
     
     private static func getScaling(η4: T.Magnitude, η5: T.Magnitude) -> Int {
@@ -215,7 +203,7 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
         let scaledMatrix = matrix.map { T(magnitude: $0.length * factor)  }
         let oneNormEstimator = MatrixPowerOneNormEstimator(A: scaledMatrix, order: (2 * order + 1))
         let alpha = oneNormEstimator.compute() / matrix.manhattanNorm
-        let u = raise(2.0, to: -52.0)
+        let u = T.raise(2.0, to: -52.0)
         return T.Magnitude.maximum(ceil( T.Magnitude.log2(2.0 * alpha / u)/T.Magnitude(2 * order) ), 0.0)
     }
     
@@ -228,34 +216,34 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
                 let t11 = matrix[k,k]
                 let t22 = matrix[k+1,k+1]
                 
-                let avg = (t11+t22)/two
-                let df = (t11-t22)/two
+                let avg = (t11+t22)/T.two
+                let df = (t11-t22)/T.two
                 
                 var x12: T
                 // Compare lengths because T can be Complex
                 if max(avg.length as! Double, df.length as! Double) < log(Double.greatestFiniteMagnitude) {
-                    x12 = matrix[k, k+1] * avg.exponentiation() * sinch((t22 - t11) / two)
+                    x12 = matrix[k, k+1] * T.exp(avg) * T.sinch((t22 - t11) / T.two)
                 } else {
-                    x12 = matrix[k, k+1] * (t22.exponentiation() - t11.exponentiation()) / (t22 - t11)
+                    x12 = matrix[k, k+1] * (T.exp(t22) - T.exp(t11)) / (t22 - t11)
                 }
-                exponentiated[k,k] = t11.exponentiation()
+                exponentiated[k,k] = T.exp(t11)
                 exponentiated[k,k+1] = x12
-                exponentiated[k+1, k+1] = t22.exponentiation()
+                exponentiated[k+1, k+1] = T.exp(t22)
             case 2:
                 let a = matrix[k, k]
                 let b = matrix[k, k+1]
                 let c = matrix[k+1, k]
                 let d = matrix[k+1, k+1]
                 
-                let avg = (a+d)/two
-                let df = (a-d)/two
+                let avg = (a+d)/T.two
+                let df = (a-d)/T.two
                 
-                let μ = two * two * (df * df + b * c)
-                let delta = μ.squareRoot()/two
+                let μ = T.two * T.two * (df * df + b * c)
+                let delta = T.sqrt(μ)/T.two
                 
-                let expad2 = avg.exponentiation()
+                let expad2 = T.exp(avg)
                 let coshdelta = T.cosh(delta)
-                let sinchdelta = sinch(delta)
+                let sinchdelta = T.sinch(delta)
                 
                 exponentiated[k,k] = expad2 * ( coshdelta + df * sinchdelta)
                 exponentiated[k,k+1] = expad2 * b * sinchdelta
@@ -267,16 +255,5 @@ public class MatrixExponentiator<T> where T: Exponentiable & ElementaryFunctions
         }
     }
     
-    private static var one: T {
-        T(magnitude: 1.0)
-    }
-    
-    private static var two: T {
-        T(magnitude: 2.0)
-    }
-    
-    private static func raiseTwo(to scaling: Int) -> T {
-        return T(magnitude: T.Magnitude.pow(2.0, T.Magnitude(scaling)))
-    }
 }
 

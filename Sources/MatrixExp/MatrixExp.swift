@@ -38,7 +38,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
     
     private static func exp(diagMatrix: Matrix<T>) -> Matrix<T> {
         let range = 0..<diagMatrix.columns
-        let diag = range.map { diagMatrix[$0,$0].exponentiation() }
+        let diag = range.map { T.exp(diagMatrix[$0,$0]) }
         return Matrix<T>(rows: diagMatrix.rows, columns: diagMatrix.columns, diagonal: diag)
     }
     
@@ -46,7 +46,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         let (_, schurForm, schurVectors) = hermitianMatrix.schur()!
         
         let range = 0..<schurForm.columns
-        let diagonal = range.map { schurForm[$0,$0].exponentiation() }
+        let diagonal = range.map { T.exp(schurForm[$0,$0]) }
         let expSchurForm = Matrix<T>(rows: schurForm.rows, columns: schurForm.columns, diagonal: diagonal)
         
         return schurVectors * expSchurForm * schurVectors.adjoint
@@ -60,12 +60,12 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         
         let (scaling, order, matrixPowers) = expmParams(for: matrix)
         
-        let factor = scaling > 0 ? powerOf2(scaling: scaling) : one
+        let factor = scaling > 0 ? T.raiseTwo(to: scaling) : T.one
         var scaledMatrix = scaling > 0 ? matrix.map { $0 / factor } : matrix
         
         let scaledMatrixPowers = (0..<matrixPowers.count).map { power in
             if scaling > 0 {
-                let factor = powerOf2(scaling: (power+1) * scaling)
+                let factor = T.raiseTwo(to: (power+1) * scaling)
                 return matrixPowers[power].map { $0 / factor }
             } else {
                 return matrixPowers[power]
@@ -89,24 +89,6 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         }
         
         return (result, scaling, order)
-    }
-    
-    static func sinch(_ x: T) -> T {
-        var value: T
-        if x == T.zero {
-            value = one
-        } else {
-            value = sinh(x) / x
-        }
-        return value
-    }
-    
-    private static func sinh(_ x: T) -> T {
-        return (x.exponentiation() - (-x).exponentiation()) / two
-    }
-    
-    private static func cosh(_ x: T) -> T {
-        return (x.exponentiation() + (-x).exponentiation()) / two
     }
     
     static func expmParams(for M: Matrix<T>) -> (Int, PadeApproximantOrder, [Matrix<T>]) {
@@ -162,7 +144,7 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         let η5 = T.Magnitude.minimum(η3, η4)
         scaling = getScaling(η4: η4, η5: η5)
         
-        let factor = powerOf2(scaling: scaling)
+        let factor = T.raiseTwo(to: scaling)
         let scaledM = M.map { $0 / factor }
         let sFromEll = ell(scaledM, coeff: MatrixExpConst<T>.coefficientsOfBackwardsErrorFunction[4], order: 13)
         
@@ -246,34 +228,34 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
                 let t11 = matrix[k,k]
                 let t22 = matrix[k+1,k+1]
                 
-                let avg = (t11+t22)/two
-                let df = (t11-t22)/two
+                let avg = (t11+t22)/T.two
+                let df = (t11-t22)/T.two
                 
                 var x12: T
                 // Compare lengths because T can be Complex
                 if max(avg.length as! Double, df.length as! Double) < log(Double.greatestFiniteMagnitude) {
-                    x12 = matrix[k, k+1] * avg.exponentiation() * sinch((t22 - t11) / two)
+                    x12 = matrix[k, k+1] * T.exp(avg) * T.sinch((t22 - t11) / T.two)
                 } else {
-                    x12 = matrix[k, k+1] * (t22.exponentiation() - t11.exponentiation()) / (t22 - t11)
+                    x12 = matrix[k, k+1] * (T.exp(t22) - T.exp(t11)) / (t22 - t11)
                 }
-                exponentiated[k,k] = t11.exponentiation()
+                exponentiated[k,k] = T.exp(t11)
                 exponentiated[k,k+1] = x12
-                exponentiated[k+1, k+1] = t22.exponentiation()
+                exponentiated[k+1, k+1] = T.exp(t22)
             case 2:
                 let a = matrix[k, k]
                 let b = matrix[k, k+1]
                 let c = matrix[k+1, k]
                 let d = matrix[k+1, k+1]
                 
-                let avg = (a+d)/two
-                let df = (a-d)/two
+                let avg = (a+d)/T.two
+                let df = (a-d)/T.two
                 
-                let μ = two * two * (df * df + b * c)
-                let delta = μ.squareRoot()/two
+                let μ = T.two * T.two * (df * df + b * c)
+                let delta = T.sqrt(μ)/T.two
                 
-                let expad2 = avg.exponentiation()
-                let coshdelta = MatrixExp.cosh(delta)
-                let sinchdelta = sinch(delta)
+                let expad2 = T.exp(avg)
+                let coshdelta = T.cosh(delta)
+                let sinchdelta = T.sinch(delta)
                 
                 exponentiated[k,k] = expad2 * ( coshdelta + df * sinchdelta)
                 exponentiated[k,k+1] = expad2 * b * sinchdelta
@@ -285,16 +267,5 @@ public class MatrixExp<T> where T: Exponentiable, T.Magnitude: Real {
         }
     }
     
-    private static var one: T {
-        T(magnitude: 1.0)
-    }
-    
-    private static var two: T {
-        T(magnitude: 2.0)
-    }
-    
-    private static func powerOf2(scaling: Int) -> T {
-        return T(magnitude: T.Magnitude.pow(2.0, T.Magnitude(scaling)))
-    }
 }
 
